@@ -1,5 +1,6 @@
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useMealPlanStore, useUserStore } from '../../src/stores';
 
 // Color palette from design doc
 const colors = {
@@ -10,15 +11,115 @@ const colors = {
 };
 
 export default function TonightScreen() {
-  // TODO: Replace with real data from recommendation engine
-  const meal = {
-    name: 'Chicken Tikka Masala',
-    subtitle: 'with Garlic Naan & Raita',
-    time: 35,
-    difficulty: 'Medium',
-    cost: 8,
-    reasoning: 'Uses the chicken expiring tomorrow + your leftover yogurt',
+  // Get data from stores
+  const { todayRecommendation, setTodayRecommendation, markCompleted, addPlan, isLoading } = useMealPlanStore();
+  const { partner } = useUserStore();
+
+  const handleLetsCook = () => {
+    if (!todayRecommendation) return;
+
+    // Add to meal plan and mark as completed
+    addPlan({
+      date: new Date(),
+      mealType: 'dinner',
+      recipe: todayRecommendation.recipe,
+      notes: todayRecommendation.reasoning,
+      completed: true,
+      rating: null,
+    });
+
+    // Clear the recommendation after cooking
+    setTodayRecommendation(null);
   };
+
+  const handleNotTonight = () => {
+    // Clear the recommendation (future: could implement rejectAndGetNext)
+    setTodayRecommendation(null);
+  };
+
+  const handleGenerateRecommendation = () => {
+    // TODO: Connect to recommendation engine
+    // For now, set a sample recommendation for testing
+    setTodayRecommendation({
+      recipe: {
+        id: 'sample_1',
+        name: 'Chicken Tikka Masala',
+        description: 'Classic Indian curry with tender chicken in creamy tomato sauce',
+        imageUrl: null,
+        prepTime: 15,
+        cookTime: 20,
+        servings: 4,
+        difficulty: 'medium',
+        cuisine: 'Indian',
+        ingredients: [],
+        steps: [],
+        tags: ['curry', 'chicken', 'indian'],
+        estimatedCost: 8,
+      },
+      score: 0.92,
+      reasoning: 'Uses the chicken expiring tomorrow + your leftover yogurt',
+      expiringIngredients: [],
+      missingIngredients: [],
+      estimatedSavings: 5,
+    });
+  };
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.title}>HEARTHSTONE</Text>
+        </View>
+        <Text style={styles.sectionTitle}>Tonight</Text>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.hearthOrange} />
+          <Text style={styles.loadingText}>Finding the perfect meal...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Empty state - no recommendation
+  if (!todayRecommendation) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.title}>HEARTHSTONE</Text>
+        </View>
+
+        <Text style={styles.sectionTitle}>Tonight</Text>
+
+        <View style={styles.emptyStateCard}>
+          <Text style={styles.emptyStateEmoji}>🍳</Text>
+          <Text style={styles.emptyStateTitle}>No meal planned yet</Text>
+          <Text style={styles.emptyStateSubtitle}>
+            Let us find the perfect dinner based on what you have in your kitchen
+          </Text>
+
+          <TouchableOpacity
+            style={styles.primaryButton}
+            onPress={handleGenerateRecommendation}
+          >
+            <Text style={styles.primaryButtonText}>GENERATE RECOMMENDATION</Text>
+          </TouchableOpacity>
+        </View>
+
+        {partner && (
+          <View style={styles.partnerStatus}>
+            <Text style={styles.partnerStatusText}>
+              Partner: {partner.name} is connected
+            </Text>
+          </View>
+        )}
+      </SafeAreaView>
+    );
+  }
+
+  // Extract meal data from recommendation
+  const { recipe, reasoning } = todayRecommendation;
+  const totalTime = recipe.prepTime + recipe.cookTime;
+  const difficultyDisplay = recipe.difficulty.charAt(0).toUpperCase() + recipe.difficulty.slice(1);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -31,32 +132,56 @@ export default function TonightScreen() {
       <View style={styles.mealCard}>
         {/* Placeholder for meal image */}
         <View style={styles.imagePlaceholder}>
-          <Text style={styles.imagePlaceholderText}>🍛</Text>
+          <Text style={styles.imagePlaceholderText}>
+            {recipe.cuisine === 'Indian' ? '🍛' :
+             recipe.cuisine === 'Italian' ? '🍝' :
+             recipe.cuisine === 'Mexican' ? '🌮' :
+             recipe.cuisine === 'Japanese' ? '🍱' :
+             recipe.cuisine === 'Chinese' ? '🥡' : '🍽️'}
+          </Text>
         </View>
 
-        <Text style={styles.mealName}>{meal.name}</Text>
-        <Text style={styles.mealSubtitle}>{meal.subtitle}</Text>
+        <Text style={styles.mealName}>{recipe.name}</Text>
+        <Text style={styles.mealSubtitle}>{recipe.description}</Text>
 
         <View style={styles.metricsRow}>
-          <Text style={styles.metric}>🕐 {meal.time} min</Text>
-          <Text style={styles.metric}>🔥 {meal.difficulty}</Text>
-          <Text style={styles.metric}>💰 £{meal.cost}</Text>
+          <Text style={styles.metric}>🕐 {totalTime} min</Text>
+          <Text style={styles.metric}>🔥 {difficultyDisplay}</Text>
+          <Text style={styles.metric}>💰 £{recipe.estimatedCost}</Text>
         </View>
 
-        <Text style={styles.reasoning}>"{meal.reasoning}"</Text>
+        <Text style={styles.reasoning}>"{reasoning}"</Text>
 
-        <TouchableOpacity style={styles.primaryButton}>
+        <TouchableOpacity
+          style={styles.primaryButton}
+          onPress={handleLetsCook}
+        >
           <Text style={styles.primaryButtonText}>LET'S COOK</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.secondaryLink}>
+        <TouchableOpacity
+          style={styles.secondaryLink}
+          onPress={handleNotTonight}
+        >
           <Text style={styles.secondaryLinkText}>Not tonight →</Text>
         </TouchableOpacity>
       </View>
 
       <View style={styles.partnerStatus}>
-        <Text style={styles.partnerStatusText}>Partner: Alex is home at 6:30</Text>
-        <Text style={styles.partnerStatusText}>Prep done: Rice is ready ✓</Text>
+        {partner ? (
+          <>
+            <Text style={styles.partnerStatusText}>
+              Partner: {partner.name} is connected
+            </Text>
+            <Text style={styles.partnerStatusText}>
+              Serving {recipe.servings} people
+            </Text>
+          </>
+        ) : (
+          <Text style={styles.partnerStatusText}>
+            Cooking for 1 tonight
+          </Text>
+        )}
       </View>
     </SafeAreaView>
   );
@@ -86,6 +211,47 @@ const styles = StyleSheet.create({
     color: colors.charcoal,
     marginBottom: 16,
   },
+  // Loading state styles
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 16,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: colors.charcoal,
+  },
+  // Empty state styles
+  emptyStateCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 32,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  emptyStateEmoji: {
+    fontSize: 64,
+    marginBottom: 16,
+  },
+  emptyStateTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: colors.charcoal,
+    marginBottom: 8,
+  },
+  emptyStateSubtitle: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 20,
+  },
+  // Meal card styles
   mealCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 16,

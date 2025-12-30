@@ -1,5 +1,6 @@
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useUserStore, useProgressStore } from '../../src/stores';
 
 const colors = {
   hearthOrange: '#E85D04',
@@ -9,14 +10,30 @@ const colors = {
 };
 
 export default function DashboardScreen() {
-  // TODO: Replace with real data from stores
-  const stats = {
-    streak: 14,
-    monthSaved: 247,
-    monthMeals: 18,
-    weeklyHoursSaved: 2.1,
-    itemsSaved: 12,
-  };
+  const { monthlyStats, weeklyStats, partner } = useUserStore();
+  const { progress } = useProgressStore();
+
+  // Derive stats from stores with safe defaults
+  const streak = progress.streak ?? 0;
+  const longestStreak = progress.longestStreak ?? 0;
+  const monthSaved = monthlyStats.moneySaved ?? 0;
+  const monthMeals = monthlyStats.mealsCooked ?? 0;
+  const weeklyHoursSaved = weeklyStats.hoursSaved ?? 0;
+  const itemsSaved = monthlyStats.itemsSavedFromExpiry ?? 0;
+  const cuisinesExplored = monthlyStats.cuisinesExplored ?? [];
+
+  // Calculate couple cooking percentage safely
+  const couplesMeals = monthlyStats.couplesMeals ?? 0;
+  const totalMeals = monthlyStats.totalMeals ?? 0;
+  const couplePercentage = totalMeals > 0
+    ? Math.round((couplesMeals / totalMeals) * 100)
+    : 0;
+
+  // Show "Your longest yet!" only if current streak equals longest streak and streak > 0
+  const isLongestStreak = streak > 0 && streak === longestStreak;
+
+  // Get partner name or default
+  const partnerName = partner?.name ?? 'your partner';
 
   return (
     <SafeAreaView style={styles.container}>
@@ -26,23 +43,25 @@ export default function DashboardScreen() {
         {/* Streak Card */}
         <View style={styles.streakCard}>
           <Text style={styles.streakEmoji}>🔥</Text>
-          <Text style={styles.streakNumber}>{stats.streak}-DAY STREAK</Text>
-          <Text style={styles.streakSubtitle}>Your longest yet!</Text>
+          <Text style={styles.streakNumber}>{streak}-DAY STREAK</Text>
+          {isLongestStreak && (
+            <Text style={styles.streakSubtitle}>Your longest yet!</Text>
+          )}
         </View>
 
         {/* Monthly Stats */}
         <Text style={styles.sectionTitle}>This Month</Text>
         <View style={styles.statsRow}>
           <View style={styles.statCard}>
-            <Text style={styles.statNumber}>£{stats.monthSaved}</Text>
+            <Text style={styles.statNumber}>£{monthSaved}</Text>
             <Text style={styles.statLabel}>saved vs eat out</Text>
           </View>
           <View style={styles.statCard}>
-            <Text style={styles.statNumber}>{stats.monthMeals}</Text>
+            <Text style={styles.statNumber}>{monthMeals}</Text>
             <Text style={styles.statLabel}>meals cooked</Text>
           </View>
           <View style={styles.statCard}>
-            <Text style={styles.statNumber}>{stats.weeklyHoursSaved}</Text>
+            <Text style={styles.statNumber}>{weeklyHoursSaved}</Text>
             <Text style={styles.statLabel}>hrs/wk saved</Text>
           </View>
         </View>
@@ -51,7 +70,7 @@ export default function DashboardScreen() {
         <View style={styles.rescueCard}>
           <Text style={styles.rescueTitle}>Food Rescue</Text>
           <Text style={styles.rescueEmoji}>🥕🥦🍗</Text>
-          <Text style={styles.rescueText}>{stats.itemsSaved} items saved from expiring this month</Text>
+          <Text style={styles.rescueText}>{itemsSaved} items saved from expiring this month</Text>
           <View style={styles.progressBar}>
             <View style={[styles.progressFill, { width: '75%' }]} />
           </View>
@@ -61,16 +80,22 @@ export default function DashboardScreen() {
         {/* Taste Journey */}
         <View style={styles.journeyCard}>
           <Text style={styles.journeyTitle}>Taste Journey</Text>
-          <Text style={styles.journeyText}>8 cuisines explored</Text>
-          <Text style={styles.journeyHighlight}>NEW: Thai unlocked! 🇹🇭</Text>
+          <Text style={styles.journeyText}>{cuisinesExplored.length} cuisines explored</Text>
+          {cuisinesExplored.length > 0 && (
+            <Text style={styles.journeyHighlight}>
+              {cuisinesExplored.join(', ')}
+            </Text>
+          )}
         </View>
 
         {/* Together Stats */}
-        <View style={styles.togetherCard}>
-          <Text style={styles.togetherText}>
-            You & Alex cooked 73% of meals together this month 💕
-          </Text>
-        </View>
+        {totalMeals > 0 && (
+          <View style={styles.togetherCard}>
+            <Text style={styles.togetherText}>
+              You & {partnerName} cooked {couplePercentage}% of meals together this month 💕
+            </Text>
+          </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
