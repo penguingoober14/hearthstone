@@ -1,4 +1,4 @@
-import { Text, TextStyle, StyleSheet } from 'react-native';
+import { Text, TextStyle, StyleSheet, StyleProp } from 'react-native';
 import { ReactNode } from 'react';
 import { colors, typography } from '../lib/theme';
 
@@ -17,7 +17,7 @@ type TypographyVariant =
 interface TypographyProps {
   variant?: TypographyVariant;
   color?: string;
-  style?: TextStyle;
+  style?: StyleProp<TextStyle>;
   children: ReactNode;
 }
 

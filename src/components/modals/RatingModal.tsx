@@ -1,15 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   Modal,
   View,
-  Text,
   TextInput,
   StyleSheet,
   TouchableOpacity,
   Alert,
+  Animated,
 } from 'react-native';
-import { colors, borderRadius, typography, spacing } from '../../lib/theme';
+import { colors, borderRadius, spacing, shadows, glows, animation } from '../../lib/theme';
 import { Button } from '../Button';
+import { Typography } from '../Typography';
 
 interface RatingModalProps {
   visible: boolean;
@@ -18,9 +19,60 @@ interface RatingModalProps {
   mealName: string;
 }
 
+function AnimatedStar({
+  filled,
+  onPress,
+}: {
+  filled: boolean;
+  onPress: () => void;
+}) {
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  const handlePressIn = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 1.2,
+      useNativeDriver: true,
+      friction: 3,
+      tension: 100,
+    }).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      useNativeDriver: true,
+      friction: 3,
+      tension: 100,
+    }).start();
+  };
+
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      activeOpacity={0.8}
+      style={styles.starButton}
+    >
+      <Animated.View
+        style={[
+          styles.starWrapper,
+          filled && styles.starGlow,
+          { transform: [{ scale: scaleAnim }] },
+        ]}
+      >
+        <Animated.Text style={[styles.star, filled && styles.starFilled]}>
+          {filled ? '\u2605' : '\u2606'}
+        </Animated.Text>
+      </Animated.View>
+    </TouchableOpacity>
+  );
+}
+
 export function RatingModal({ visible, onClose, onSubmit, mealName }: RatingModalProps) {
   const [rating, setRating] = useState(0);
   const [notes, setNotes] = useState('');
+  const [isInputFocused, setIsInputFocused] = useState(false);
 
   const resetForm = () => {
     setRating(0);
@@ -44,41 +96,64 @@ export function RatingModal({ visible, onClose, onSubmit, mealName }: RatingModa
     Alert.alert('Coming Soon', 'Photo capture will be available in a future update!');
   };
 
+  const getRatingLabel = () => {
+    switch (rating) {
+      case 0:
+        return 'Tap a star to rate';
+      case 1:
+        return 'Not great';
+      case 2:
+        return 'Could be better';
+      case 3:
+        return 'Good';
+      case 4:
+        return 'Very good';
+      case 5:
+        return 'Amazing!';
+      default:
+        return '';
+    }
+  };
+
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={handleClose}>
       <View style={styles.overlay}>
         <View style={styles.container}>
-          <Text style={styles.title}>Rate Your Meal</Text>
-          <Text style={styles.mealName}>{mealName}</Text>
+          <Typography variant="h2" style={styles.title}>
+            Rate Your Meal
+          </Typography>
+
+          {/* Meal Name with Background Highlight */}
+          <View style={styles.mealNameContainer}>
+            <Typography variant="h3" color={colors.hearthOrange} style={styles.mealName}>
+              {mealName}
+            </Typography>
+          </View>
 
           {/* Star Rating */}
           <View style={styles.starsContainer}>
             {[1, 2, 3, 4, 5].map((star) => (
-              <TouchableOpacity
+              <AnimatedStar
                 key={star}
+                filled={star <= rating}
                 onPress={() => setRating(star)}
-                style={styles.starButton}
-              >
-                <Text style={[styles.star, star <= rating && styles.starFilled]}>
-                  {star <= rating ? '★' : '☆'}
-                </Text>
-              </TouchableOpacity>
+              />
             ))}
           </View>
-          <Text style={styles.ratingLabel}>
-            {rating === 0 && 'Tap a star to rate'}
-            {rating === 1 && 'Not great'}
-            {rating === 2 && 'Could be better'}
-            {rating === 3 && 'Good'}
-            {rating === 4 && 'Very good'}
-            {rating === 5 && 'Amazing!'}
-          </Text>
+          <Typography variant="caption" style={styles.ratingLabel}>
+            {getRatingLabel()}
+          </Typography>
 
           {/* Notes Input */}
           <View style={styles.fieldContainer}>
-            <Text style={styles.label}>Notes (optional)</Text>
+            <Typography variant="label" style={styles.label}>
+              Notes (optional)
+            </Typography>
             <TextInput
-              style={styles.textInput}
+              style={[
+                styles.textInput,
+                isInputFocused && styles.textInputFocused,
+              ]}
               value={notes}
               onChangeText={setNotes}
               placeholder="Any thoughts about this meal?"
@@ -86,13 +161,19 @@ export function RatingModal({ visible, onClose, onSubmit, mealName }: RatingModa
               multiline
               numberOfLines={3}
               textAlignVertical="top"
+              onFocus={() => setIsInputFocused(true)}
+              onBlur={() => setIsInputFocused(false)}
             />
           </View>
 
           {/* Take Photo Button */}
           <TouchableOpacity style={styles.photoButton} onPress={handleTakePhoto}>
-            <Text style={styles.photoIcon}>📷</Text>
-            <Text style={styles.photoText}>Take Photo</Text>
+            <Typography variant="h3" style={styles.photoIcon}>
+              {'\uD83D\uDCF7'}
+            </Typography>
+            <Typography variant="body" color={colors.gray600} style={styles.photoText}>
+              Take Photo
+            </Typography>
           </TouchableOpacity>
 
           {/* Buttons */}
@@ -120,7 +201,7 @@ export function RatingModal({ visible, onClose, onSubmit, mealName }: RatingModa
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: spacing.xl,
@@ -128,23 +209,25 @@ const styles = StyleSheet.create({
   container: {
     backgroundColor: colors.white,
     borderRadius: borderRadius.xl,
-    padding: spacing.xl,
+    padding: spacing.xxl,
     width: '100%',
     maxWidth: 400,
+    ...shadows.xl,
   },
   title: {
-    fontSize: typography.xxl,
-    fontWeight: typography.bold,
-    color: colors.charcoal,
     textAlign: 'center',
   },
-  mealName: {
-    fontSize: typography.lg,
-    fontWeight: typography.medium,
-    color: colors.hearthOrange,
-    textAlign: 'center',
-    marginTop: spacing.sm,
+  mealNameContainer: {
+    backgroundColor: colors.hearthOrangeLight,
+    borderRadius: borderRadius.lg,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    marginTop: spacing.md,
     marginBottom: spacing.xl,
+    alignSelf: 'center',
+  },
+  mealName: {
+    textAlign: 'center',
   },
   starsContainer: {
     flexDirection: 'row',
@@ -155,16 +238,20 @@ const styles = StyleSheet.create({
   starButton: {
     padding: spacing.xs,
   },
+  starWrapper: {
+    borderRadius: borderRadius.full,
+  },
   star: {
-    fontSize: 40,
+    fontSize: 52,
     color: colors.gray300,
   },
   starFilled: {
     color: colors.warning,
   },
+  starGlow: {
+    ...glows.glowWarning,
+  },
   ratingLabel: {
-    fontSize: typography.sm,
-    color: colors.gray500,
     textAlign: 'center',
     marginBottom: spacing.xl,
   },
@@ -172,9 +259,6 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   label: {
-    fontSize: typography.sm,
-    fontWeight: typography.semibold,
-    color: colors.gray600,
     marginBottom: spacing.sm,
   },
   textInput: {
@@ -182,30 +266,37 @@ const styles = StyleSheet.create({
     borderColor: colors.gray200,
     borderRadius: borderRadius.lg,
     padding: spacing.md,
-    fontSize: typography.base,
+    fontSize: 16,
     color: colors.charcoal,
     backgroundColor: colors.gray50,
     minHeight: 80,
+    ...shadows.sm,
+  },
+  textInputFocused: {
+    borderColor: colors.hearthOrange,
+    borderWidth: 2,
+    backgroundColor: colors.white,
+    ...shadows.md,
   },
   photoButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: spacing.md,
+    padding: spacing.lg,
     borderRadius: borderRadius.lg,
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: colors.gray200,
     borderStyle: 'dashed',
     marginBottom: spacing.xl,
-    gap: spacing.sm,
+    gap: spacing.md,
+    backgroundColor: colors.gray50,
+    ...shadows.sm,
   },
   photoIcon: {
-    fontSize: 24,
+    fontSize: 32,
   },
   photoText: {
-    fontSize: typography.base,
-    color: colors.gray500,
-    fontWeight: typography.medium,
+    fontWeight: '600',
   },
   buttonRow: {
     flexDirection: 'row',

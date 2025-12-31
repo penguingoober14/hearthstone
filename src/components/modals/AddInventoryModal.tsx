@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import {
   Modal,
   View,
-  Text,
   TextInput,
   StyleSheet,
   TouchableOpacity,
@@ -10,8 +9,9 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { colors, borderRadius, typography, spacing } from '../../lib/theme';
+import { colors, borderRadius, spacing, shadows } from '../../lib/theme';
 import { Button } from '../Button';
+import { Typography } from '../Typography';
 import type { InventoryItem, FoodCategory } from '../../types';
 
 interface AddInventoryModalProps {
@@ -28,17 +28,17 @@ const LOCATIONS: { key: LocationType; label: string; emoji: string }[] = [
   { key: 'pantry', label: 'Pantry', emoji: '🏠' },
 ];
 
-const CATEGORIES: { key: FoodCategory; label: string }[] = [
-  { key: 'protein', label: 'Protein' },
-  { key: 'dairy', label: 'Dairy' },
-  { key: 'produce', label: 'Produce' },
-  { key: 'grains', label: 'Grains' },
-  { key: 'canned', label: 'Canned' },
-  { key: 'condiments', label: 'Condiments' },
-  { key: 'frozen', label: 'Frozen' },
-  { key: 'snacks', label: 'Snacks' },
-  { key: 'beverages', label: 'Beverages' },
-  { key: 'other', label: 'Other' },
+const CATEGORIES: { key: FoodCategory; label: string; emoji: string }[] = [
+  { key: 'protein', label: 'Protein', emoji: '🥩' },
+  { key: 'dairy', label: 'Dairy', emoji: '🧀' },
+  { key: 'produce', label: 'Produce', emoji: '🥬' },
+  { key: 'grains', label: 'Grains', emoji: '🌾' },
+  { key: 'canned', label: 'Canned', emoji: '🥫' },
+  { key: 'condiments', label: 'Condiments', emoji: '🧂' },
+  { key: 'frozen', label: 'Frozen', emoji: '🧊' },
+  { key: 'snacks', label: 'Snacks', emoji: '🍿' },
+  { key: 'beverages', label: 'Beverages', emoji: '🥤' },
+  { key: 'other', label: 'Other', emoji: '📦' },
 ];
 
 export function AddInventoryModal({ visible, onClose, onSave }: AddInventoryModalProps) {
@@ -48,7 +48,6 @@ export function AddInventoryModal({ visible, onClose, onSave }: AddInventoryModa
   const [category, setCategory] = useState<FoodCategory>('other');
   const [quantity, setQuantity] = useState(1);
   const [expiryDate, setExpiryDate] = useState('');
-  const [showCategoryPicker, setShowCategoryPicker] = useState(false);
 
   const resetForm = () => {
     setName('');
@@ -57,7 +56,6 @@ export function AddInventoryModal({ visible, onClose, onSave }: AddInventoryModa
     setCategory('other');
     setQuantity(1);
     setExpiryDate('');
-    setShowCategoryPicker(false);
   };
 
   const handleClose = () => {
@@ -87,8 +85,6 @@ export function AddInventoryModal({ visible, onClose, onSave }: AddInventoryModa
   const incrementQuantity = () => setQuantity((q) => q + 1);
   const decrementQuantity = () => setQuantity((q) => Math.max(1, q - 1));
 
-  const selectedCategoryLabel = CATEGORIES.find((c) => c.key === category)?.label || 'Other';
-
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={handleClose}>
       <KeyboardAvoidingView
@@ -96,12 +92,19 @@ export function AddInventoryModal({ visible, onClose, onSave }: AddInventoryModa
         style={styles.overlay}
       >
         <View style={styles.container}>
-          <ScrollView showsVerticalScrollIndicator={false}>
-            <Text style={styles.title}>Add Item</Text>
+          {/* Modal Header */}
+          <View style={styles.header}>
+            <Typography variant="h2" style={styles.title}>Add Item</Typography>
+          </View>
 
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            style={styles.scrollContent}
+            contentContainerStyle={styles.scrollContentContainer}
+          >
             {/* Name Input */}
             <View style={styles.fieldContainer}>
-              <Text style={styles.label}>Name *</Text>
+              <Typography variant="label" style={styles.label}>Name *</Typography>
               <TextInput
                 style={styles.textInput}
                 value={name}
@@ -113,7 +116,7 @@ export function AddInventoryModal({ visible, onClose, onSave }: AddInventoryModa
 
             {/* Emoji Input */}
             <View style={styles.fieldContainer}>
-              <Text style={styles.label}>Emoji</Text>
+              <Typography variant="label" style={styles.label}>Emoji</Typography>
               <TextInput
                 style={styles.textInput}
                 value={emoji}
@@ -125,7 +128,7 @@ export function AddInventoryModal({ visible, onClose, onSave }: AddInventoryModa
 
             {/* Location Selection */}
             <View style={styles.fieldContainer}>
-              <Text style={styles.label}>Location</Text>
+              <Typography variant="label" style={styles.label}>Location</Typography>
               <View style={styles.locationRow}>
                 {LOCATIONS.map((loc) => (
                   <TouchableOpacity
@@ -136,75 +139,66 @@ export function AddInventoryModal({ visible, onClose, onSave }: AddInventoryModa
                     ]}
                     onPress={() => setLocation(loc.key)}
                   >
-                    <Text style={styles.locationEmoji}>{loc.emoji}</Text>
-                    <Text
+                    <Typography variant="h2" style={styles.locationEmoji}>{loc.emoji}</Typography>
+                    <Typography
+                      variant="bodySmall"
                       style={[
                         styles.locationText,
                         location === loc.key && styles.locationTextActive,
                       ]}
                     >
                       {loc.label}
-                    </Text>
+                    </Typography>
                   </TouchableOpacity>
                 ))}
               </View>
             </View>
 
-            {/* Category Picker */}
+            {/* Category Picker - 2 Column Grid */}
             <View style={styles.fieldContainer}>
-              <Text style={styles.label}>Category</Text>
-              <TouchableOpacity
-                style={styles.pickerButton}
-                onPress={() => setShowCategoryPicker(!showCategoryPicker)}
-              >
-                <Text style={styles.pickerButtonText}>{selectedCategoryLabel}</Text>
-                <Text style={styles.pickerArrow}>{showCategoryPicker ? '▲' : '▼'}</Text>
-              </TouchableOpacity>
-              {showCategoryPicker && (
-                <View style={styles.categoryList}>
-                  {CATEGORIES.map((cat) => (
-                    <TouchableOpacity
-                      key={cat.key}
+              <Typography variant="label" style={styles.label}>Category</Typography>
+              <View style={styles.categoryGrid}>
+                {CATEGORIES.map((cat) => (
+                  <TouchableOpacity
+                    key={cat.key}
+                    style={[
+                      styles.categoryItem,
+                      category === cat.key && styles.categoryItemActive,
+                    ]}
+                    onPress={() => setCategory(cat.key)}
+                  >
+                    <Typography variant="h3" style={styles.categoryEmoji}>{cat.emoji}</Typography>
+                    <Typography
+                      variant="bodySmall"
                       style={[
-                        styles.categoryItem,
-                        category === cat.key && styles.categoryItemActive,
+                        styles.categoryText,
+                        category === cat.key && styles.categoryTextActive,
                       ]}
-                      onPress={() => {
-                        setCategory(cat.key);
-                        setShowCategoryPicker(false);
-                      }}
                     >
-                      <Text
-                        style={[
-                          styles.categoryItemText,
-                          category === cat.key && styles.categoryItemTextActive,
-                        ]}
-                      >
-                        {cat.label}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              )}
+                      {cat.label}
+                    </Typography>
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
 
             {/* Quantity */}
             <View style={styles.fieldContainer}>
-              <Text style={styles.label}>Quantity</Text>
+              <Typography variant="label" style={styles.label}>Quantity</Typography>
               <View style={styles.quantityRow}>
                 <TouchableOpacity style={styles.quantityButton} onPress={decrementQuantity}>
-                  <Text style={styles.quantityButtonText}>-</Text>
+                  <Typography variant="h2" color={colors.charcoal}>-</Typography>
                 </TouchableOpacity>
-                <Text style={styles.quantityValue}>{quantity}</Text>
+                <Typography variant="h2" style={styles.quantityValue}>{quantity}</Typography>
                 <TouchableOpacity style={styles.quantityButton} onPress={incrementQuantity}>
-                  <Text style={styles.quantityButtonText}>+</Text>
+                  <Typography variant="h2" color={colors.charcoal}>+</Typography>
                 </TouchableOpacity>
               </View>
             </View>
 
             {/* Expiry Date */}
             <View style={styles.fieldContainer}>
-              <Text style={styles.label}>Expiry Date (optional)</Text>
+              <Typography variant="label" style={styles.label}>Expiry Date (optional)</Typography>
               <TextInput
                 style={styles.textInput}
                 value={expiryDate}
@@ -241,7 +235,7 @@ export function AddInventoryModal({ visible, onClose, onSave }: AddInventoryModa
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: spacing.xl,
@@ -249,24 +243,32 @@ const styles = StyleSheet.create({
   container: {
     backgroundColor: colors.white,
     borderRadius: borderRadius.xl,
-    padding: spacing.xl,
     width: '100%',
     maxHeight: '90%',
+    overflow: 'hidden',
+    ...shadows.lg,
+  },
+  header: {
+    backgroundColor: colors.hearthOrangeLight,
+    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.xl,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.gray200,
   },
   title: {
-    fontSize: typography.xxl,
-    fontWeight: typography.bold,
-    color: colors.charcoal,
-    marginBottom: spacing.xl,
     textAlign: 'center',
+    color: colors.hearthOrange,
+  },
+  scrollContent: {
+    flex: 1,
+  },
+  scrollContentContainer: {
+    padding: spacing.xl,
   },
   fieldContainer: {
     marginBottom: spacing.lg,
   },
   label: {
-    fontSize: typography.sm,
-    fontWeight: typography.semibold,
-    color: colors.gray600,
     marginBottom: spacing.sm,
   },
   textInput: {
@@ -274,7 +276,7 @@ const styles = StyleSheet.create({
     borderColor: colors.gray200,
     borderRadius: borderRadius.lg,
     padding: spacing.md,
-    fontSize: typography.base,
+    fontSize: 16,
     color: colors.charcoal,
     backgroundColor: colors.gray50,
   },
@@ -287,96 +289,81 @@ const styles = StyleSheet.create({
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
+    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.lg,
+    borderWidth: 2,
+    borderColor: colors.gray200,
+    backgroundColor: colors.gray50,
+    minHeight: 80,
+  },
+  locationButtonActive: {
+    borderColor: colors.hearthOrange,
+    backgroundColor: colors.hearthOrangeLight,
+    ...shadows.sm,
+  },
+  locationEmoji: {
+    marginBottom: spacing.xs,
+  },
+  locationText: {
+    color: colors.gray600,
+    fontWeight: '500',
+  },
+  locationTextActive: {
+    color: colors.hearthOrange,
+    fontWeight: '700',
+  },
+  categoryGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  categoryItem: {
+    width: '48%',
+    flexDirection: 'row',
+    alignItems: 'center',
     padding: spacing.md,
     borderRadius: borderRadius.lg,
     borderWidth: 2,
     borderColor: colors.gray200,
     backgroundColor: colors.gray50,
-  },
-  locationButtonActive: {
-    borderColor: colors.hearthOrange,
-    backgroundColor: colors.hearthOrangeLight,
-  },
-  locationEmoji: {
-    fontSize: 24,
-    marginBottom: spacing.xs,
-  },
-  locationText: {
-    fontSize: typography.sm,
-    fontWeight: typography.medium,
-    color: colors.gray600,
-  },
-  locationTextActive: {
-    color: colors.hearthOrange,
-    fontWeight: typography.bold,
-  },
-  pickerButton: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.gray200,
-    borderRadius: borderRadius.lg,
-    padding: spacing.md,
-    backgroundColor: colors.gray50,
-  },
-  pickerButtonText: {
-    fontSize: typography.base,
-    color: colors.charcoal,
-  },
-  pickerArrow: {
-    fontSize: typography.sm,
-    color: colors.gray400,
-  },
-  categoryList: {
-    marginTop: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.gray200,
-    borderRadius: borderRadius.lg,
-    backgroundColor: colors.white,
-    maxHeight: 200,
-  },
-  categoryItem: {
-    padding: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.gray100,
+    gap: spacing.sm,
   },
   categoryItemActive: {
+    borderColor: colors.hearthOrange,
     backgroundColor: colors.hearthOrangeLight,
+    ...shadows.sm,
   },
-  categoryItemText: {
-    fontSize: typography.base,
-    color: colors.charcoal,
+  categoryEmoji: {
+    fontSize: 20,
   },
-  categoryItemTextActive: {
+  categoryText: {
+    color: colors.gray600,
+    flex: 1,
+  },
+  categoryTextActive: {
     color: colors.hearthOrange,
-    fontWeight: typography.semibold,
+    fontWeight: '600',
   },
   quantityRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: spacing.lg,
+    gap: spacing.xl,
   },
   quantityButton: {
-    width: 44,
-    height: 44,
+    width: 52,
+    height: 52,
     borderRadius: borderRadius.lg,
     backgroundColor: colors.gray100,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  quantityButtonText: {
-    fontSize: typography.xxl,
-    fontWeight: typography.bold,
-    color: colors.charcoal,
+    ...shadows.sm,
   },
   quantityValue: {
-    fontSize: typography.xxl,
-    fontWeight: typography.bold,
-    color: colors.charcoal,
-    minWidth: 50,
+    minWidth: 60,
     textAlign: 'center',
+    color: colors.charcoal,
   },
   buttonRow: {
     flexDirection: 'row',
