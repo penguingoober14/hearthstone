@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import { TouchableOpacity, Text, StyleSheet, ViewStyle, View, ActivityIndicator } from 'react-native';
+import { useRef } from 'react';
+import { TouchableOpacity, Text, StyleSheet, ViewStyle, View, ActivityIndicator, Animated } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { colors, borderRadius, typography, shadows, glows } from '../lib/theme';
 
 interface ButtonProps {
@@ -15,6 +16,7 @@ interface ButtonProps {
   fullWidth?: boolean;
   leftIcon?: string;
   rightIcon?: string;
+  haptic?: boolean;
 }
 
 export function Button({
@@ -30,8 +32,9 @@ export function Button({
   fullWidth = false,
   leftIcon,
   rightIcon,
+  haptic = true,
 }: ButtonProps) {
-  const [isPressed, setIsPressed] = useState(false);
+  const scaleAnim = useRef(new Animated.Value(1)).current;
 
   // Determine if this variant uses white text (for ActivityIndicator color)
   const hasWhiteText = ['primary', 'secondary', 'gradient', 'danger', 'success'].includes(variant);
@@ -40,8 +43,7 @@ export function Button({
     styles.base,
     sizeStyles[size],
     variantStyles[variant],
-    // Default shadow (sm), enhanced when pressed (md)
-    isPressed ? shadows.md : shadows.sm,
+    shadows.sm,
     // Apply glow effect when enabled and variant is primary
     glow && variant === 'primary' && glows.glowOrange,
     fullWidth && styles.fullWidth,
@@ -56,18 +58,37 @@ export function Button({
     disabled && styles.textDisabled,
   ];
 
+  const triggerHaptic = () => {
+    if (haptic) {
+      try {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      } catch {
+        // Haptics not supported on this platform
+      }
+    }
+  };
+
   const handlePress = () => {
-    // TODO: Add haptic feedback here
-    // Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+    triggerHaptic();
     onPress();
   };
 
   const handlePressIn = () => {
-    setIsPressed(true);
+    Animated.spring(scaleAnim, {
+      toValue: 0.97,
+      useNativeDriver: true,
+      tension: 300,
+      friction: 10,
+    }).start();
   };
 
   const handlePressOut = () => {
-    setIsPressed(false);
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      useNativeDriver: true,
+      tension: 300,
+      friction: 10,
+    }).start();
   };
 
   // Build the text content with optional icons
@@ -85,23 +106,25 @@ export function Button({
   };
 
   return (
-    <TouchableOpacity
-      style={buttonStyle}
-      onPress={handlePress}
-      onPressIn={handlePressIn}
-      onPressOut={handlePressOut}
-      disabled={disabled || loading}
-      activeOpacity={0.8}
-    >
-      {loading ? (
-        <ActivityIndicator
-          color={hasWhiteText ? '#FFFFFF' : colors.hearthOrange}
-          size="small"
-        />
-      ) : (
-        renderContent()
-      )}
-    </TouchableOpacity>
+    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+      <TouchableOpacity
+        style={buttonStyle}
+        onPress={handlePress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        disabled={disabled || loading}
+        activeOpacity={0.8}
+      >
+        {loading ? (
+          <ActivityIndicator
+            color={hasWhiteText ? '#FFFFFF' : colors.hearthOrange}
+            size="small"
+          />
+        ) : (
+          renderContent()
+        )}
+      </TouchableOpacity>
+    </Animated.View>
   );
 }
 

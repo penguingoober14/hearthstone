@@ -3,7 +3,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useMealPlanStore, useUserStore } from '../../src/stores';
 import { colors, spacing, borderRadius, shadows, glows } from '../../src/lib/theme';
 import { containers, cards, layout, accents } from '../../src/lib/globalStyles';
-import { Typography, BadgePill } from '../../src/components';
+import { Typography, BadgePill, AnimatedContainer } from '../../src/components';
 
 export default function TonightScreen() {
   // Get data from stores
@@ -124,45 +124,47 @@ export default function TonightScreen() {
 
       <Text style={styles.sectionTitle}>Tonight</Text>
 
-      <View style={styles.mealCard}>
-        {/* Placeholder for meal image */}
-        <View style={styles.imagePlaceholder}>
-          <Text style={styles.imagePlaceholderText}>
-            {recipe.cuisine === 'Indian' ? '🍛' :
-             recipe.cuisine === 'Italian' ? '🍝' :
-             recipe.cuisine === 'Mexican' ? '🌮' :
-             recipe.cuisine === 'Japanese' ? '🍱' :
-             recipe.cuisine === 'Chinese' ? '🥡' : '🍽️'}
-          </Text>
+      <AnimatedContainer animation="fadeSlideUp">
+        <View style={styles.mealCard}>
+          {/* Placeholder for meal image */}
+          <View style={styles.imagePlaceholder}>
+            <Text style={styles.imagePlaceholderText}>
+              {recipe.cuisine === 'Indian' ? '🍛' :
+               recipe.cuisine === 'Italian' ? '🍝' :
+               recipe.cuisine === 'Mexican' ? '🌮' :
+               recipe.cuisine === 'Japanese' ? '🍱' :
+               recipe.cuisine === 'Chinese' ? '🥡' : '🍽️'}
+            </Text>
+          </View>
+
+          <Text style={styles.mealName}>{recipe.name}</Text>
+          <Text style={styles.mealSubtitle}>{recipe.description}</Text>
+
+          <View style={styles.metricsRow}>
+            <BadgePill icon="🕐" label={`${totalTime} min`} variant="muted" size="sm" />
+            <BadgePill icon="🔥" label={difficultyDisplay} variant="muted" size="sm" />
+            <BadgePill icon="💰" label={`£${recipe.estimatedCost}`} variant="muted" size="sm" />
+          </View>
+
+          <View style={styles.reasoning}>
+            <Text style={styles.reasoningText}>"{reasoning}"</Text>
+          </View>
+
+          <TouchableOpacity
+            style={styles.primaryButton}
+            onPress={handleLetsCook}
+          >
+            <Text style={styles.primaryButtonText}>LET'S COOK</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.secondaryLink}
+            onPress={handleNotTonight}
+          >
+            <Text style={styles.secondaryLinkText}>Not tonight →</Text>
+          </TouchableOpacity>
         </View>
-
-        <Text style={styles.mealName}>{recipe.name}</Text>
-        <Text style={styles.mealSubtitle}>{recipe.description}</Text>
-
-        <View style={styles.metricsRow}>
-          <BadgePill icon="🕐" label={`${totalTime} min`} variant="muted" size="sm" />
-          <BadgePill icon="🔥" label={difficultyDisplay} variant="muted" size="sm" />
-          <BadgePill icon="💰" label={`£${recipe.estimatedCost}`} variant="muted" size="sm" />
-        </View>
-
-        <View style={styles.reasoning}>
-          <Text style={styles.reasoningText}>"{reasoning}"</Text>
-        </View>
-
-        <TouchableOpacity
-          style={styles.primaryButton}
-          onPress={handleLetsCook}
-        >
-          <Text style={styles.primaryButtonText}>LET'S COOK</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.secondaryLink}
-          onPress={handleNotTonight}
-        >
-          <Text style={styles.secondaryLinkText}>Not tonight →</Text>
-        </TouchableOpacity>
-      </View>
+      </AnimatedContainer>
 
       <View style={styles.partnerStatus}>
         {partner ? (

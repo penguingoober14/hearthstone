@@ -1,9 +1,9 @@
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useUserStore, useProgressStore } from '../../src/stores';
 import { colors, spacing, borderRadius, shadows, glows } from '../../src/lib/theme';
 import { containers, cards, layout } from '../../src/lib/globalStyles';
-import { Typography, BadgePill } from '../../src/components';
+import { Typography, BadgePill, AnimatedCard } from '../../src/components';
 
 export default function DashboardScreen() {
   const { monthlyStats, weeklyStats, partner } = useUserStore();
@@ -31,6 +31,31 @@ export default function DashboardScreen() {
   // Get partner name or default
   const partnerName = partner?.name ?? 'your partner';
 
+  // Alert handlers for stat cards
+  const handleMoneySavedPress = () => {
+    Alert.alert(
+      'Money Saved',
+      `You've saved ${monthSaved} this month by cooking at home instead of eating out!\n\nThat's money you can put towards better ingredients, kitchen gadgets, or a special treat.`,
+      [{ text: 'Great!', style: 'default' }]
+    );
+  };
+
+  const handleMealsCookedPress = () => {
+    Alert.alert(
+      'Meals Cooked',
+      `${monthMeals} meals prepared with love this month!\n\nEvery home-cooked meal is a step towards healthier eating and culinary mastery.`,
+      [{ text: 'Keep cooking!', style: 'default' }]
+    );
+  };
+
+  const handleHoursSavedPress = () => {
+    Alert.alert(
+      'Hours Saved',
+      `You're saving about ${weeklyHoursSaved} hours per week through efficient meal planning!\n\nSmart prep and batch cooking add up to more time for what you love.`,
+      [{ text: 'Nice!', style: 'default' }]
+    );
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
@@ -48,18 +73,36 @@ export default function DashboardScreen() {
         {/* Monthly Stats */}
         <Text style={styles.sectionTitle}>This Month</Text>
         <View style={styles.statsRow}>
-          <View style={[styles.statCard, styles.statCardOrange]}>
-            <Text style={styles.statNumber}>£{monthSaved}</Text>
+          <AnimatedCard
+            style={[styles.statCard, styles.statCardOrange]}
+            onPress={handleMoneySavedPress}
+            animateOnMount
+            mountDelay={0}
+            elevation="sm"
+          >
+            <Text style={styles.statNumber}>{monthSaved}</Text>
             <Text style={styles.statLabel}>saved vs eat out</Text>
-          </View>
-          <View style={[styles.statCard, styles.statCardGreen]}>
+          </AnimatedCard>
+          <AnimatedCard
+            style={[styles.statCard, styles.statCardGreen]}
+            onPress={handleMealsCookedPress}
+            animateOnMount
+            mountDelay={100}
+            elevation="sm"
+          >
             <Text style={styles.statNumber}>{monthMeals}</Text>
             <Text style={styles.statLabel}>meals cooked</Text>
-          </View>
-          <View style={[styles.statCard, styles.statCardBlue]}>
+          </AnimatedCard>
+          <AnimatedCard
+            style={[styles.statCard, styles.statCardBlue]}
+            onPress={handleHoursSavedPress}
+            animateOnMount
+            mountDelay={200}
+            elevation="sm"
+          >
             <Text style={styles.statNumber}>{weeklyHoursSaved}</Text>
             <Text style={styles.statLabel}>hrs/wk saved</Text>
-          </View>
+          </AnimatedCard>
         </View>
 
         {/* Food Rescue */}
@@ -151,12 +194,8 @@ const styles = StyleSheet.create({
   },
   statCard: {
     flex: 1,
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.lg,
-    padding: spacing.lg,
     alignItems: 'center',
     borderTopWidth: 3,
-    ...shadows.sm,
   },
   statCardOrange: {
     borderTopColor: colors.hearthOrange,

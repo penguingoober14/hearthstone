@@ -8,7 +8,9 @@
       "Bash(npx tsc:*)",
       "Bash(node:*)",
       "Bash(npx expo:*)",
-      "Bash(git commit -m \"$\\(cat <<''EOF''\nBatch 2: Screen Redesigns - futuristic UI applied to all screens\n\nTonight:\n- Gradient hero card with glow, badge metrics, accent borders\n- Enhanced empty state and partner status\n\nDashboard:\n- Glowing streak card, stat cards with color-coded top accents\n- Cuisines as badge pills, together card with left accent\n\nInventory:\n- USE SOON section with left red border\n- Expiry-based left borders on items \\(red/orange/gray\\)\n- Enhanced scan button with icon\n\nPrep:\n- Replaced text checkboxes with Checkbox component\n- Day/time badges, prominent time remaining\n- Start button with icon, motivation card accent\n\nQuest:\n- Glowing level badge, ProgressBar component for XP\n- Challenge cards with type-based accents\n- Achievement grid layout, couple card accent\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")"
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nBatch 2: Screen Redesigns - futuristic UI applied to all screens\n\nTonight:\n- Gradient hero card with glow, badge metrics, accent borders\n- Enhanced empty state and partner status\n\nDashboard:\n- Glowing streak card, stat cards with color-coded top accents\n- Cuisines as badge pills, together card with left accent\n\nInventory:\n- USE SOON section with left red border\n- Expiry-based left borders on items \\(red/orange/gray\\)\n- Enhanced scan button with icon\n\nPrep:\n- Replaced text checkboxes with Checkbox component\n- Day/time badges, prominent time remaining\n- Start button with icon, motivation card accent\n\nQuest:\n- Glowing level badge, ProgressBar component for XP\n- Challenge cards with type-based accents\n- Achievement grid layout, couple card accent\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git commit:*)",
+      "Bash(cat:*)"
     ]
   }
 }

@@ -5,7 +5,7 @@ import { useStreak } from '../../src/hooks';
 import type { Challenge, Achievement } from '../../src/types';
 import { colors, spacing, borderRadius, shadows, glows } from '../../src/lib/theme';
 import { containers, cards, layout, accents } from '../../src/lib/globalStyles';
-import { Typography, BadgePill, ProgressBar } from '../../src/components';
+import { Typography, BadgePill, ProgressBar, AnimatedCard } from '../../src/components';
 
 // Hardcoded couple challenge (until we have couple store)
 const coupleChallenge = {
@@ -151,13 +151,17 @@ export default function QuestScreen() {
             </Typography>
           </View>
         ) : (
-          activeChallenges.map((challenge: Challenge) => (
-            <View
+          activeChallenges.map((challenge: Challenge, index: number) => (
+            <AnimatedCard
               key={challenge.id}
               style={[
                 styles.challengeCard,
                 { borderTopColor: getChallengeBorderColor(challenge.type) }
               ]}
+              onPress={() => handleViewChallenge(challenge)}
+              animateOnMount
+              mountDelay={index * 100}
+              elevation="md"
             >
               <View style={styles.challengeHeader}>
                 <Text style={styles.challengeEmoji}>{challenge.emoji}</Text>
@@ -188,13 +192,10 @@ export default function QuestScreen() {
               <Typography variant="bodySmall" color={colors.sageGreen} style={styles.rewardText}>
                 Reward: {formatReward(challenge)}
               </Typography>
-              <TouchableOpacity
-                style={styles.viewButton}
-                onPress={() => handleViewChallenge(challenge)}
-              >
-                <Text style={styles.viewButtonText}>View →</Text>
-              </TouchableOpacity>
-            </View>
+              <View style={styles.viewButton}>
+                <Text style={styles.viewButtonText}>View</Text>
+              </View>
+            </AnimatedCard>
           ))
         )}
 
@@ -324,12 +325,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   challengeCard: {
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.xl,
-    padding: spacing.lg,
     marginBottom: spacing.md,
     borderTopWidth: 3,
-    ...shadows.md,
   },
   challengeHeader: {
     flexDirection: 'row',

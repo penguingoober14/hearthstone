@@ -1,3 +1,6 @@
+export { AnimatedCard } from './AnimatedCard';
+export { AnimatedContainer } from './AnimatedContainer';
+export { AnimatedList } from './AnimatedList';
 export { BadgePill } from './Badge';
 export { Button } from './Button';
 export { Card } from './Card';
