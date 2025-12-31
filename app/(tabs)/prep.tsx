@@ -3,13 +3,9 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'rea
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useMealPlanStore } from '../../src/stores';
-
-const colors = {
-  hearthOrange: '#E85D04',
-  charcoal: '#2D3436',
-  cream: '#FDF6E3',
-  sageGreen: '#52796F',
-};
+import { colors, spacing, borderRadius, shadows } from '../../src/lib/theme';
+import { containers, cards, layout } from '../../src/lib/globalStyles';
+import { Typography, BadgePill, Checkbox } from '../../src/components';
 
 const PREP_TASKS_KEY = 'hearthstone-prep-tasks';
 
@@ -157,8 +153,8 @@ export default function PrepScreen() {
           <Text style={styles.cardTitle}>This Week's Plan</Text>
           {hasWeekPlan ? (
             weekPlan.map((day, index) => (
-              <View key={index} style={styles.dayRow}>
-                <Text style={styles.dayLabel}>{day.day}:</Text>
+              <View key={index} style={[styles.dayRow, day.meal && styles.dayRowWithMeal]}>
+                <BadgePill label={day.day} variant="muted" size="sm" />
                 <Text style={styles.dayMeal}>{day.meal}</Text>
               </View>
             ))
@@ -174,23 +170,22 @@ export default function PrepScreen() {
 
         {/* Prep Tasks */}
         <View style={styles.tasksCard}>
-          <Text style={styles.cardTitle}>
-            Prep Tasks (~{totalPrepTime} min remaining)
-          </Text>
+          <View style={styles.tasksHeader}>
+            <Text style={styles.cardTitle}>Prep Tasks</Text>
+            <BadgePill
+              label={`~${totalPrepTime} min remaining`}
+              variant="primary"
+              icon="🕐"
+            />
+          </View>
 
           {hasTasks ? (
             tasks.map((task) => (
               <View key={task.id} style={styles.taskRow}>
-                <TouchableOpacity
-                  style={styles.checkbox}
-                  onPress={() => toggleTask(task.id)}
-                  accessibilityRole="checkbox"
-                  accessibilityState={{ checked: task.completed }}
-                >
-                  <Text style={[styles.checkboxText, task.completed && styles.checkboxCompleted]}>
-                    {task.completed ? '✓' : '☐'}
-                  </Text>
-                </TouchableOpacity>
+                <Checkbox
+                  checked={task.completed}
+                  onChange={() => toggleTask(task.id)}
+                />
                 <View style={styles.taskContent}>
                   <View style={styles.taskHeader}>
                     <Text
@@ -198,17 +193,30 @@ export default function PrepScreen() {
                     >
                       {task.task}
                     </Text>
-                    <Text
-                      style={[styles.taskTime, task.completed && styles.taskTimeCompleted]}
-                    >
-                      {task.time}min
-                    </Text>
+                    <BadgePill
+                      label={`${task.time}min`}
+                      variant="warning"
+                      size="sm"
+                      icon="🕐"
+                      style={task.completed ? styles.badgeCompleted : undefined}
+                    />
                   </View>
-                  <Text
-                    style={[styles.taskUsedIn, task.completed && styles.taskUsedInCompleted]}
-                  >
-                    → Used {task.usedIn}
-                  </Text>
+                  <View style={styles.usedInContainer}>
+                    <Text style={[styles.usedInLabel, task.completed && styles.taskUsedInCompleted]}>
+                      Used in:
+                    </Text>
+                    <View style={styles.usedInBadges}>
+                      {task.usedIn.split(', ').map((day, idx) => (
+                        <BadgePill
+                          key={idx}
+                          label={day.trim()}
+                          variant="muted"
+                          size="sm"
+                          style={task.completed ? styles.badgeCompleted : undefined}
+                        />
+                      ))}
+                    </View>
+                  </View>
                 </View>
               </View>
             ))
@@ -228,13 +236,13 @@ export default function PrepScreen() {
           onPress={handleStartGuidedPrep}
           disabled={tasks.length === 0}
         >
-          <Text style={styles.startButtonText}>Start Guided Prep</Text>
+          <Text style={styles.startButtonText}>▶️ Start Guided Prep</Text>
         </TouchableOpacity>
 
         {/* Motivation */}
         <View style={styles.motivationCard}>
           <Text style={styles.motivationText}>
-            "Doing this saves 2.5 hours during your weeknights"
+            💡 "Doing this saves 2.5 hours during your weeknights"
           </Text>
         </View>
       </ScrollView>
@@ -246,7 +254,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.cream,
-    padding: 20,
+    padding: spacing.xl,
   },
   title: {
     fontSize: 28,
@@ -256,32 +264,34 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 16,
-    color: '#6B7280',
+    color: colors.gray500,
     marginBottom: 20,
   },
   weekCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 20,
+    backgroundColor: colors.white,
+    borderRadius: borderRadius.xl,
+    padding: spacing.xl,
+    marginBottom: spacing.xl,
+    ...shadows.md,
   },
   cardTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: colors.charcoal,
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   dayRow: {
     flexDirection: 'row',
-    paddingVertical: 8,
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: colors.gray100,
+    gap: spacing.md,
   },
-  dayLabel: {
-    width: 50,
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.charcoal,
+  dayRowWithMeal: {
+    backgroundColor: colors.gray50,
+    marginHorizontal: -spacing.xl,
+    paddingHorizontal: spacing.xl,
   },
   dayMeal: {
     flex: 1,
@@ -289,30 +299,24 @@ const styles = StyleSheet.create({
     color: colors.charcoal,
   },
   tasksCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 20,
+    backgroundColor: colors.white,
+    borderRadius: borderRadius.xl,
+    padding: spacing.xl,
+    marginBottom: spacing.xl,
+    ...shadows.md,
+  },
+  tasksHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.lg,
   },
   taskRow: {
     flexDirection: 'row',
-    paddingVertical: 12,
+    paddingVertical: spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
-  },
-  checkbox: {
-    width: 32,
-    height: 32,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  checkboxText: {
-    fontSize: 24,
-    color: colors.charcoal,
-  },
-  checkboxCompleted: {
-    color: colors.sageGreen,
+    borderBottomColor: colors.gray100,
+    gap: spacing.md,
   },
   taskContent: {
     flex: 1,
@@ -320,53 +324,66 @@ const styles = StyleSheet.create({
   taskHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 4,
+    alignItems: 'center',
+    marginBottom: spacing.xs,
   },
   taskName: {
     fontSize: 16,
     fontWeight: '500',
     color: colors.charcoal,
+    flex: 1,
+    marginRight: spacing.sm,
   },
   taskNameCompleted: {
     textDecorationLine: 'line-through',
-    color: '#9CA3AF',
+    color: colors.gray400,
   },
-  taskTime: {
-    fontSize: 14,
-    color: '#6B7280',
+  usedInContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.xs,
   },
-  taskTimeCompleted: {
-    textDecorationLine: 'line-through',
-    color: '#D1D5DB',
-  },
-  taskUsedIn: {
+  usedInLabel: {
     fontSize: 13,
     color: colors.sageGreen,
   },
+  usedInBadges: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+  },
   taskUsedInCompleted: {
     textDecorationLine: 'line-through',
-    color: '#D1D5DB',
+    color: colors.gray300,
+  },
+  badgeCompleted: {
+    opacity: 0.5,
   },
   startButton: {
     backgroundColor: colors.hearthOrange,
-    borderRadius: 12,
-    padding: 18,
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: spacing.xl,
+    ...shadows.md,
   },
   startButtonDisabled: {
-    backgroundColor: '#D1D5DB',
+    backgroundColor: colors.gray300,
   },
   startButtonText: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 18,
     fontWeight: 'bold',
   },
   motivationCard: {
-    backgroundColor: 'rgba(82, 121, 111, 0.1)',
-    borderRadius: 12,
-    padding: 16,
+    backgroundColor: colors.sageGreenLight,
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
     marginBottom: 40,
+    borderLeftWidth: 4,
+    borderLeftColor: colors.sageGreen,
+    ...shadows.sm,
   },
   motivationText: {
     fontSize: 14,
@@ -375,16 +392,16 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
   emptyState: {
-    paddingVertical: 20,
+    paddingVertical: spacing.xl,
     alignItems: 'center',
   },
   emptyStateText: {
     fontSize: 16,
-    color: '#6B7280',
-    marginBottom: 4,
+    color: colors.gray500,
+    marginBottom: spacing.xs,
   },
   emptyStateSubtext: {
     fontSize: 14,
-    color: '#9CA3AF',
+    color: colors.gray400,
   },
 });

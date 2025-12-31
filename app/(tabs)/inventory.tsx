@@ -14,14 +14,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useInventoryStore } from '../../src/stores';
 import { useExpiry } from '../../src/hooks';
 import type { InventoryItem, FoodCategory } from '../../src/types';
-
-const colors = {
-  hearthOrange: '#E85D04',
-  charcoal: '#2D3436',
-  cream: '#FDF6E3',
-  sageGreen: '#52796F',
-  softRed: '#D62828',
-};
+import { colors, spacing, borderRadius, shadows } from '../../src/lib/theme';
+import { containers, cards, layout, accents, dividers } from '../../src/lib/globalStyles';
+import { Typography, BadgePill } from '../../src/components';
 
 const LOCATIONS: Array<InventoryItem['location']> = ['fridge', 'freezer', 'pantry'];
 const CATEGORIES: FoodCategory[] = [
@@ -61,8 +56,14 @@ function InventoryItemRow({ item, daysLeft, isEditMode, onDelete }: InventoryIte
   const isUrgent = daysLeft !== null && daysLeft <= 3;
   const isWarning = daysLeft !== null && daysLeft <= 7 && daysLeft > 3;
 
+  const getLeftBorderColor = () => {
+    if (isUrgent) return colors.softRed;
+    if (isWarning) return colors.hearthOrange;
+    return colors.gray200;
+  };
+
   return (
-    <View style={styles.itemRow}>
+    <View style={[styles.itemRow, { borderLeftColor: getLeftBorderColor() }]}>
       <Text style={styles.itemEmoji}>{item.emoji}</Text>
       <View style={styles.itemInfo}>
         <Text style={styles.itemName}>{item.name}</Text>
@@ -365,7 +366,7 @@ export default function InventoryScreen() {
 
         {/* Scan Receipt Button */}
         <TouchableOpacity style={styles.scanButton} onPress={handleScanReceipt}>
-          <Text style={styles.scanButtonText}>Scan Receipt</Text>
+          <Text style={styles.scanButtonText}>📷 Scan Receipt</Text>
         </TouchableOpacity>
 
         {/* Empty State */}
@@ -394,13 +395,13 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.cream,
-    padding: 20,
+    padding: spacing.xl,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: spacing.xl,
   },
   title: {
     fontSize: 28,
@@ -409,37 +410,42 @@ const styles = StyleSheet.create({
   },
   addButton: {
     backgroundColor: colors.hearthOrange,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.lg,
+    ...shadows.sm,
   },
   addButtonText: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontWeight: '600',
   },
   urgentSection: {
-    backgroundColor: 'rgba(214, 40, 40, 0.1)',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 20,
+    backgroundColor: colors.softRedLight,
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
+    marginBottom: spacing.xl,
+    borderLeftWidth: 4,
+    borderLeftColor: colors.softRed,
+    ...shadows.sm,
   },
   urgentTitle: {
     fontSize: 14,
     fontWeight: 'bold',
     color: colors.softRed,
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
   section: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
+    backgroundColor: colors.white,
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
+    marginBottom: spacing.lg,
+    ...shadows.sm,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
   sectionTitle: {
     fontSize: 14,
@@ -453,13 +459,18 @@ const styles = StyleSheet.create({
   itemRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: colors.gray100,
+    backgroundColor: colors.gray50,
+    borderLeftWidth: 3,
+    marginVertical: 2,
+    borderRadius: borderRadius.sm,
   },
   itemEmoji: {
     fontSize: 20,
-    marginRight: 12,
+    marginRight: spacing.md,
   },
   itemInfo: {
     flex: 1,
@@ -470,12 +481,12 @@ const styles = StyleSheet.create({
   },
   itemQuantity: {
     fontSize: 12,
-    color: '#6B7280',
+    color: colors.gray500,
   },
   itemDays: {
     fontSize: 14,
-    color: '#6B7280',
-    marginRight: 8,
+    color: colors.gray500,
+    marginRight: spacing.sm,
   },
   itemDaysUrgent: {
     color: colors.softRed,
@@ -486,32 +497,32 @@ const styles = StyleSheet.create({
   },
   deleteButton: {
     backgroundColor: colors.softRed,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
+    ...shadows.sm,
   },
   deleteButtonText: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 12,
     fontWeight: 'bold',
   },
   emptyText: {
-    color: '#9CA3AF',
+    color: colors.gray400,
     fontStyle: 'italic',
     textAlign: 'center',
-    paddingVertical: 12,
+    paddingVertical: spacing.md,
   },
   scanButton: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
+    backgroundColor: colors.hearthOrangeLight,
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
     alignItems: 'center',
     marginBottom: 40,
     borderWidth: 2,
     borderColor: colors.hearthOrange,
-    borderStyle: 'dashed',
   },
   scanButtonText: {
     fontSize: 16,
@@ -521,20 +532,23 @@ const styles = StyleSheet.create({
   emptyState: {
     alignItems: 'center',
     paddingVertical: 40,
+    backgroundColor: colors.white,
+    borderRadius: borderRadius.lg,
+    ...shadows.lg,
   },
   emptyStateEmoji: {
-    fontSize: 64,
-    marginBottom: 16,
+    fontSize: 80,
+    marginBottom: spacing.lg,
   },
   emptyStateTitle: {
     fontSize: 20,
     fontWeight: 'bold',
     color: colors.charcoal,
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   emptyStateText: {
     fontSize: 14,
-    color: '#6B7280',
+    color: colors.gray500,
     textAlign: 'center',
     paddingHorizontal: 40,
   },
@@ -545,17 +559,17 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 24,
+    backgroundColor: colors.white,
+    borderTopLeftRadius: borderRadius.xl,
+    borderTopRightRadius: borderRadius.xl,
+    padding: spacing.xxl,
     maxHeight: '90%',
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: spacing.xxl,
   },
   modalTitle: {
     fontSize: 22,
@@ -570,29 +584,29 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: colors.charcoal,
-    marginBottom: 8,
-    marginTop: 16,
+    marginBottom: spacing.sm,
+    marginTop: spacing.lg,
   },
   textInput: {
-    backgroundColor: '#F9FAFB',
-    borderRadius: 8,
-    padding: 12,
+    backgroundColor: colors.gray50,
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
     fontSize: 16,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.gray200,
   },
   pickerRow: {
     flexDirection: 'row',
-    gap: 8,
+    gap: spacing.sm,
   },
   pickerOption: {
     flex: 1,
     paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    backgroundColor: '#F9FAFB',
+    paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.gray50,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.gray200,
     alignItems: 'center',
   },
   pickerOptionSelected: {
@@ -604,21 +618,21 @@ const styles = StyleSheet.create({
     color: colors.charcoal,
   },
   pickerOptionTextSelected: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontWeight: '600',
   },
   categoryScroll: {
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   categoryOption: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    backgroundColor: '#F9FAFB',
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.gray50,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.gray200,
     alignItems: 'center',
-    marginRight: 8,
+    marginRight: spacing.sm,
   },
   categoryOptionSelected: {
     backgroundColor: colors.sageGreen,
@@ -626,7 +640,7 @@ const styles = StyleSheet.create({
   },
   categoryEmoji: {
     fontSize: 20,
-    marginBottom: 4,
+    marginBottom: spacing.xs,
   },
   categoryText: {
     fontSize: 12,
@@ -634,18 +648,18 @@ const styles = StyleSheet.create({
     textTransform: 'capitalize',
   },
   categoryTextSelected: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontWeight: '600',
   },
   saveButton: {
     backgroundColor: colors.hearthOrange,
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
     alignItems: 'center',
-    marginTop: 24,
+    marginTop: spacing.xxl,
   },
   saveButtonText: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 16,
     fontWeight: 'bold',
   },

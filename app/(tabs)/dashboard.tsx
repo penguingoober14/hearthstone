@@ -1,13 +1,9 @@
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useUserStore, useProgressStore } from '../../src/stores';
-
-const colors = {
-  hearthOrange: '#E85D04',
-  charcoal: '#2D3436',
-  cream: '#FDF6E3',
-  sageGreen: '#52796F',
-};
+import { colors, spacing, borderRadius, shadows, glows } from '../../src/lib/theme';
+import { containers, cards, layout } from '../../src/lib/globalStyles';
+import { Typography, BadgePill } from '../../src/components';
 
 export default function DashboardScreen() {
   const { monthlyStats, weeklyStats, partner } = useUserStore();
@@ -52,15 +48,15 @@ export default function DashboardScreen() {
         {/* Monthly Stats */}
         <Text style={styles.sectionTitle}>This Month</Text>
         <View style={styles.statsRow}>
-          <View style={styles.statCard}>
+          <View style={[styles.statCard, styles.statCardOrange]}>
             <Text style={styles.statNumber}>£{monthSaved}</Text>
             <Text style={styles.statLabel}>saved vs eat out</Text>
           </View>
-          <View style={styles.statCard}>
+          <View style={[styles.statCard, styles.statCardGreen]}>
             <Text style={styles.statNumber}>{monthMeals}</Text>
             <Text style={styles.statLabel}>meals cooked</Text>
           </View>
-          <View style={styles.statCard}>
+          <View style={[styles.statCard, styles.statCardBlue]}>
             <Text style={styles.statNumber}>{weeklyHoursSaved}</Text>
             <Text style={styles.statLabel}>hrs/wk saved</Text>
           </View>
@@ -82,9 +78,16 @@ export default function DashboardScreen() {
           <Text style={styles.journeyTitle}>Taste Journey</Text>
           <Text style={styles.journeyText}>{cuisinesExplored.length} cuisines explored</Text>
           {cuisinesExplored.length > 0 && (
-            <Text style={styles.journeyHighlight}>
-              {cuisinesExplored.join(', ')}
-            </Text>
+            <View style={styles.cuisinesContainer}>
+              {cuisinesExplored.map((cuisine, index) => (
+                <BadgePill
+                  key={index}
+                  label={cuisine}
+                  variant="muted"
+                  size="sm"
+                />
+              ))}
+            </View>
           )}
         </View>
 
@@ -105,52 +108,64 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.cream,
-    padding: 20,
+    padding: spacing.xl,
   },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
     color: colors.charcoal,
-    marginBottom: 20,
+    marginBottom: spacing.xl,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: colors.charcoal,
-    marginTop: 20,
-    marginBottom: 12,
+    marginTop: spacing.xl,
+    marginBottom: spacing.md,
   },
   streakCard: {
     backgroundColor: colors.hearthOrange,
-    borderRadius: 16,
-    padding: 24,
+    borderRadius: borderRadius.xl,
+    padding: spacing.xxl,
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: spacing.xl,
+    ...glows.glowOrange,
   },
   streakEmoji: {
     fontSize: 48,
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   streakNumber: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: colors.white,
   },
   streakSubtitle: {
     fontSize: 14,
     color: 'rgba(255,255,255,0.8)',
-    marginTop: 4,
+    marginTop: spacing.xs,
   },
   statsRow: {
     flexDirection: 'row',
-    gap: 12,
+    gap: spacing.md,
   },
   statCard: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
+    backgroundColor: colors.white,
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
     alignItems: 'center',
+    borderTopWidth: 3,
+    ...shadows.sm,
+  },
+  statCardOrange: {
+    borderTopColor: colors.hearthOrange,
+  },
+  statCardGreen: {
+    borderTopColor: colors.sageGreen,
+  },
+  statCardBlue: {
+    borderTopColor: colors.info,
   },
   statNumber: {
     fontSize: 24,
@@ -159,75 +174,80 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     fontSize: 12,
-    color: '#6B7280',
+    color: colors.gray500,
     textAlign: 'center',
-    marginTop: 4,
+    marginTop: spacing.xs,
   },
   rescueCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 20,
-    marginTop: 20,
+    backgroundColor: colors.white,
+    borderRadius: borderRadius.xl,
+    padding: spacing.xl,
+    marginTop: spacing.xl,
+    ...shadows.md,
   },
   rescueTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: colors.charcoal,
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
   rescueEmoji: {
     fontSize: 32,
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   rescueText: {
     fontSize: 14,
     color: colors.charcoal,
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
   progressBar: {
-    height: 8,
-    backgroundColor: '#E5E7EB',
-    borderRadius: 4,
+    height: 12,
+    backgroundColor: colors.gray200,
+    borderRadius: borderRadius.md,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
     backgroundColor: colors.sageGreen,
-    borderRadius: 4,
+    borderRadius: borderRadius.md,
   },
   progressLabel: {
     fontSize: 12,
-    color: '#6B7280',
-    marginTop: 4,
+    color: colors.gray500,
+    marginTop: spacing.xs,
   },
   journeyCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 20,
-    marginTop: 20,
+    backgroundColor: colors.white,
+    borderRadius: borderRadius.xl,
+    padding: spacing.xl,
+    marginTop: spacing.xl,
+    ...shadows.md,
   },
   journeyTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: colors.charcoal,
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   journeyText: {
     fontSize: 14,
     color: colors.charcoal,
   },
-  journeyHighlight: {
-    fontSize: 14,
-    color: colors.hearthOrange,
-    fontWeight: '600',
-    marginTop: 4,
+  cuisinesContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginTop: spacing.md,
   },
   togetherCard: {
-    backgroundColor: 'rgba(82, 121, 111, 0.1)',
-    borderRadius: 16,
-    padding: 20,
-    marginTop: 20,
-    marginBottom: 40,
+    backgroundColor: colors.sageGreenLight,
+    borderRadius: borderRadius.xl,
+    padding: spacing.xl,
+    marginTop: spacing.xl,
+    marginBottom: spacing.xxxl + spacing.sm,
+    borderLeftWidth: 4,
+    borderLeftColor: colors.sageGreen,
+    ...shadows.md,
   },
   togetherText: {
     fontSize: 16,

@@ -3,13 +3,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useProgressStore } from '../../src/stores';
 import { useStreak } from '../../src/hooks';
 import type { Challenge, Achievement } from '../../src/types';
-
-const colors = {
-  hearthOrange: '#E85D04',
-  charcoal: '#2D3436',
-  cream: '#FDF6E3',
-  sageGreen: '#52796F',
-};
+import { colors, spacing, borderRadius, shadows, glows } from '../../src/lib/theme';
+import { containers, cards, layout, accents } from '../../src/lib/globalStyles';
+import { Typography, BadgePill, ProgressBar } from '../../src/components';
 
 // Hardcoded couple challenge (until we have couple store)
 const coupleChallenge = {
@@ -17,6 +13,34 @@ const coupleChallenge = {
   progress: 4,
   total: 5,
   subtitle: "This week's goal",
+};
+
+// Helper to get badge variant based on challenge type
+const getChallengeTypeVariant = (type: string): 'primary' | 'success' | 'warning' => {
+  switch (type) {
+    case 'daily':
+      return 'primary';
+    case 'weekly':
+      return 'success';
+    case 'special':
+      return 'warning';
+    default:
+      return 'primary';
+  }
+};
+
+// Helper to get border color based on challenge type
+const getChallengeBorderColor = (type: string): string => {
+  switch (type) {
+    case 'daily':
+      return colors.hearthOrange;
+    case 'weekly':
+      return colors.sageGreen;
+    case 'special':
+      return colors.info;
+    default:
+      return colors.hearthOrange;
+  }
 };
 
 export default function QuestScreen() {
@@ -84,18 +108,22 @@ export default function QuestScreen() {
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Level Header */}
         <View style={styles.levelHeader}>
-          <Text style={styles.title}>Kitchen Quest</Text>
-          <Text style={styles.levelBadge}>Lvl {progress.level}</Text>
+          <Typography variant="h1">Kitchen Quest</Typography>
+          <View style={styles.levelBadge}>
+            <Text style={styles.levelBadgeText}>Lvl {progress.level}</Text>
+          </View>
         </View>
 
         {/* XP Progress */}
         <View style={styles.xpContainer}>
-          <View style={styles.xpBar}>
-            <View style={[styles.xpFill, { width: `${xpPercentage}%` }]} />
-          </View>
-          <Text style={styles.xpText}>
+          <ProgressBar
+            progress={xpPercentage}
+            height={12}
+            color={colors.hearthOrange}
+          />
+          <Typography variant="caption" style={styles.xpText}>
             {progress.currentXP.toLocaleString()} / {progress.nextLevelXP.toLocaleString()} XP
-          </Text>
+          </Typography>
         </View>
 
         {/* Streak Section */}
@@ -104,75 +132,88 @@ export default function QuestScreen() {
             <Text style={styles.streakEmoji}>
               {nextMilestone?.emoji || '🔥'}
             </Text>
-            <Text style={styles.streakMessage}>{streakMessage}</Text>
+            <Typography variant="h4" style={styles.streakMessage}>{streakMessage}</Typography>
             {nextMilestone && (
-              <Text style={styles.nextMilestoneText}>
+              <Typography variant="bodySmall" style={styles.nextMilestoneText}>
                 Next: {nextMilestone.label} ({nextMilestone.days - currentStreak} days away)
-              </Text>
+              </Typography>
             )}
           </View>
         )}
 
         {/* Active Challenges */}
-        <Text style={styles.sectionTitle}>Active Challenges</Text>
+        <Typography variant="h4" style={styles.sectionTitle}>Active Challenges</Typography>
         {activeChallenges.length === 0 ? (
           <View style={styles.emptyCard}>
             <Text style={styles.emptyEmoji}>🎯</Text>
-            <Text style={styles.emptyText}>
+            <Typography variant="bodySmall" color={colors.gray500} style={styles.emptyText}>
               No active challenges - check back tomorrow!
-            </Text>
+            </Typography>
           </View>
         ) : (
           activeChallenges.map((challenge: Challenge) => (
-            <View key={challenge.id} style={styles.challengeCard}>
+            <View
+              key={challenge.id}
+              style={[
+                styles.challengeCard,
+                { borderTopColor: getChallengeBorderColor(challenge.type) }
+              ]}
+            >
               <View style={styles.challengeHeader}>
                 <Text style={styles.challengeEmoji}>{challenge.emoji}</Text>
                 <View style={styles.challengeInfo}>
                   <View style={styles.challengeTitleRow}>
-                    <Text style={styles.challengeTitle}>{challenge.title}</Text>
-                    <Text style={styles.challengeType}>{challenge.type}</Text>
+                    <Typography variant="h4" style={styles.challengeTitle}>{challenge.title}</Typography>
+                    <BadgePill
+                      label={challenge.type}
+                      variant={getChallengeTypeVariant(challenge.type)}
+                      size="sm"
+                    />
                   </View>
-                  <Text style={styles.challengeDesc}>{challenge.description}</Text>
+                  <Typography variant="bodySmall" style={styles.challengeDesc}>{challenge.description}</Typography>
                 </View>
               </View>
               <View style={styles.challengeProgress}>
-                <View style={styles.progressBar}>
-                  <View
-                    style={[
-                      styles.progressFill,
-                      { width: `${(challenge.progress / challenge.target) * 100}%` }
-                    ]}
+                <View style={styles.progressBarWrapper}>
+                  <ProgressBar
+                    progress={(challenge.progress / challenge.target) * 100}
+                    height={8}
+                    color={colors.sageGreen}
                   />
                 </View>
-                <Text style={styles.progressText}>
+                <Typography variant="body" style={styles.progressText}>
                   {challenge.progress}/{challenge.target}
-                </Text>
+                </Typography>
               </View>
-              <Text style={styles.rewardText}>Reward: {formatReward(challenge)}</Text>
+              <Typography variant="bodySmall" color={colors.sageGreen} style={styles.rewardText}>
+                Reward: {formatReward(challenge)}
+              </Typography>
               <TouchableOpacity
                 style={styles.viewButton}
                 onPress={() => handleViewChallenge(challenge)}
               >
-                <Text style={styles.viewButtonText}>View -&gt;</Text>
+                <Text style={styles.viewButtonText}>View →</Text>
               </TouchableOpacity>
             </View>
           ))
         )}
 
         {/* Achievements */}
-        <Text style={styles.sectionTitle}>Achievements</Text>
+        <Typography variant="h4" style={styles.sectionTitle}>Achievements</Typography>
         <View style={styles.achievementsCard}>
           {earnedAchievements.length === 0 ? (
-            <Text style={styles.noAchievementsText}>
+            <Typography variant="bodySmall" color={colors.gray500} style={styles.noAchievementsText}>
               No achievements yet. Start cooking to earn your first!
-            </Text>
+            </Typography>
           ) : (
             <>
-              <View style={styles.achievementsRow}>
+              <View style={styles.achievementsGrid}>
                 {earnedAchievements.slice(0, 6).map((achievement: Achievement) => (
-                  <Text key={achievement.id} style={styles.achievementEmoji}>
-                    {achievement.emoji}
-                  </Text>
+                  <View key={achievement.id} style={styles.achievementCircle}>
+                    <Text style={styles.achievementEmoji}>
+                      {achievement.emoji}
+                    </Text>
+                  </View>
                 ))}
                 {(earnedAchievements.length > 6 || remainingAchievementsCount > 0) && (
                   <View style={styles.moreAchievements}>
@@ -183,26 +224,30 @@ export default function QuestScreen() {
                 )}
               </View>
               <TouchableOpacity onPress={handleViewAllAchievements}>
-                <Text style={styles.viewAllLink}>All -&gt;</Text>
+                <Text style={styles.viewAllLink}>All →</Text>
               </TouchableOpacity>
             </>
           )}
         </View>
 
         {/* Couple Challenges */}
-        <Text style={styles.sectionTitle}>Couple Challenges</Text>
+        <Typography variant="h4" style={styles.sectionTitle}>Couple Challenges</Typography>
         <View style={styles.coupleCard}>
           <Text style={styles.coupleEmoji}>👫</Text>
-          <Text style={styles.coupleTitle}>
+          <Typography variant="h4" style={styles.coupleTitle}>
             {coupleChallenge.title}: {coupleChallenge.progress}/{coupleChallenge.total} meals
-          </Text>
-          <Text style={styles.coupleSubtitle}>{coupleChallenge.subtitle}</Text>
-          <Text style={styles.coupleMotivation}>"One more for the badge!"</Text>
+          </Typography>
+          <Typography variant="bodySmall" style={styles.coupleSubtitle}>
+            {coupleChallenge.subtitle}
+          </Typography>
+          <Typography variant="bodySmall" color={colors.sageGreen} style={styles.coupleMotivation}>
+            "One more for the badge!"
+          </Typography>
         </View>
 
         {/* Browse All */}
         <TouchableOpacity style={styles.browseButton} onPress={handleBrowseAllChallenges}>
-          <Text style={styles.browseButtonText}>Browse All Challenges -&gt;</Text>
+          <Text style={styles.browseButtonText}>Browse All Challenges →</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
@@ -213,106 +258,86 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.cream,
-    padding: 20,
+    padding: spacing.xl,
   },
   levelHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: colors.charcoal,
+    marginBottom: spacing.md,
   },
   levelBadge: {
     backgroundColor: colors.hearthOrange,
-    color: '#FFFFFF',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: borderRadius.xl,
+    ...shadows.sm,
+    ...glows.glowOrange,
+  },
+  levelBadgeText: {
+    color: colors.white,
     fontWeight: 'bold',
-    overflow: 'hidden',
+    fontSize: 14,
   },
   xpContainer: {
-    marginBottom: 24,
-  },
-  xpBar: {
-    height: 8,
-    backgroundColor: '#E5E7EB',
-    borderRadius: 4,
-    overflow: 'hidden',
-    marginBottom: 6,
-  },
-  xpFill: {
-    height: '100%',
-    backgroundColor: colors.hearthOrange,
-    borderRadius: 4,
+    marginBottom: spacing.xxl,
   },
   xpText: {
-    fontSize: 12,
-    color: '#6B7280',
     textAlign: 'right',
+    marginTop: spacing.xs,
   },
   streakCard: {
-    backgroundColor: 'rgba(232, 93, 4, 0.1)',
-    borderRadius: 16,
-    padding: 16,
+    backgroundColor: colors.hearthOrangeLight,
+    borderRadius: borderRadius.xl,
+    padding: spacing.xl,
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: spacing.xl,
+    ...glows.glowOrange,
   },
   streakEmoji: {
     fontSize: 32,
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   streakMessage: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.charcoal,
     textAlign: 'center',
   },
   nextMilestoneText: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginTop: 4,
+    marginTop: spacing.xs,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.charcoal,
-    marginBottom: 12,
-    marginTop: 8,
+    marginBottom: spacing.md,
+    marginTop: spacing.sm,
   },
   emptyCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 24,
+    backgroundColor: colors.white,
+    borderRadius: borderRadius.xl,
+    padding: spacing.xxl,
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: spacing.md,
+    ...shadows.md,
   },
   emptyEmoji: {
     fontSize: 32,
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   emptyText: {
-    fontSize: 14,
-    color: '#6B7280',
     textAlign: 'center',
   },
   challengeCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
+    backgroundColor: colors.white,
+    borderRadius: borderRadius.xl,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
+    borderTopWidth: 3,
+    ...shadows.md,
   },
   challengeHeader: {
     flexDirection: 'row',
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
   challengeEmoji: {
     fontSize: 32,
-    marginRight: 12,
+    marginRight: spacing.md,
   },
   challengeInfo: {
     flex: 1,
@@ -323,50 +348,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   challengeTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.charcoal,
     flex: 1,
-  },
-  challengeType: {
-    fontSize: 12,
-    color: colors.hearthOrange,
-    fontWeight: '500',
-    textTransform: 'capitalize',
-    marginLeft: 8,
+    marginRight: spacing.sm,
   },
   challengeDesc: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginTop: 2,
+    marginTop: spacing.xs,
   },
   challengeProgress: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
-  progressBar: {
+  progressBarWrapper: {
     flex: 1,
-    height: 6,
-    backgroundColor: '#E5E7EB',
-    borderRadius: 3,
-    marginRight: 12,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: colors.sageGreen,
-    borderRadius: 3,
+    marginRight: spacing.md,
   },
   progressText: {
-    fontSize: 14,
-    color: colors.charcoal,
     fontWeight: '500',
   },
   rewardText: {
-    fontSize: 13,
-    color: colors.sageGreen,
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   viewButton: {
     alignSelf: 'flex-end',
@@ -376,36 +377,43 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   achievementsCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 20,
+    backgroundColor: colors.white,
+    borderRadius: borderRadius.xl,
+    padding: spacing.lg,
+    marginBottom: spacing.xl,
+    ...shadows.md,
   },
-  achievementsRow: {
+  achievementsGrid: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: spacing.sm,
+    gap: spacing.sm,
+  },
+  achievementCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.gray100,
+    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 8,
   },
   achievementEmoji: {
-    fontSize: 28,
-    marginRight: 8,
+    fontSize: 24,
   },
   moreAchievements: {
-    backgroundColor: '#E5E7EB',
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.gray200,
     justifyContent: 'center',
     alignItems: 'center',
   },
   moreText: {
     fontSize: 12,
     fontWeight: 'bold',
-    color: '#6B7280',
+    color: colors.gray600,
   },
   noAchievementsText: {
-    fontSize: 14,
-    color: '#6B7280',
     textAlign: 'center',
   },
   viewAllLink: {
@@ -414,40 +422,38 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   coupleCard: {
-    backgroundColor: 'rgba(82, 121, 111, 0.1)',
-    borderRadius: 16,
-    padding: 16,
+    backgroundColor: colors.sageGreenLight,
+    borderRadius: borderRadius.xl,
+    padding: spacing.lg,
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: spacing.xl,
+    borderLeftWidth: 4,
+    borderLeftColor: colors.sageGreen,
+    ...shadows.sm,
   },
   coupleEmoji: {
     fontSize: 32,
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   coupleTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.charcoal,
+    textAlign: 'center',
   },
   coupleSubtitle: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginTop: 4,
+    marginTop: spacing.xs,
   },
   coupleMotivation: {
-    fontSize: 14,
     fontStyle: 'italic',
-    color: colors.sageGreen,
-    marginTop: 8,
+    marginTop: spacing.sm,
   },
   browseButton: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
+    backgroundColor: colors.white,
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
     alignItems: 'center',
     marginBottom: 40,
     borderWidth: 1,
     borderColor: colors.hearthOrange,
+    ...shadows.sm,
   },
   browseButtonText: {
     color: colors.hearthOrange,

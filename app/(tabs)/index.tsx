@@ -1,14 +1,9 @@
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useMealPlanStore, useUserStore } from '../../src/stores';
-
-// Color palette from design doc
-const colors = {
-  hearthOrange: '#E85D04',
-  charcoal: '#2D3436',
-  cream: '#FDF6E3',
-  sageGreen: '#52796F',
-};
+import { colors, spacing, borderRadius, shadows, glows } from '../../src/lib/theme';
+import { containers, cards, layout, accents } from '../../src/lib/globalStyles';
+import { Typography, BadgePill } from '../../src/components';
 
 export default function TonightScreen() {
   // Get data from stores
@@ -145,12 +140,14 @@ export default function TonightScreen() {
         <Text style={styles.mealSubtitle}>{recipe.description}</Text>
 
         <View style={styles.metricsRow}>
-          <Text style={styles.metric}>🕐 {totalTime} min</Text>
-          <Text style={styles.metric}>🔥 {difficultyDisplay}</Text>
-          <Text style={styles.metric}>💰 £{recipe.estimatedCost}</Text>
+          <BadgePill icon="🕐" label={`${totalTime} min`} variant="muted" size="sm" />
+          <BadgePill icon="🔥" label={difficultyDisplay} variant="muted" size="sm" />
+          <BadgePill icon="💰" label={`£${recipe.estimatedCost}`} variant="muted" size="sm" />
         </View>
 
-        <Text style={styles.reasoning}>"{reasoning}"</Text>
+        <View style={styles.reasoning}>
+          <Text style={styles.reasoningText}>"{reasoning}"</Text>
+        </View>
 
         <TouchableOpacity
           style={styles.primaryButton}
@@ -191,13 +188,13 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.cream,
-    padding: 20,
+    padding: spacing.xl,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: spacing.xl,
   },
   title: {
     fontSize: 20,
@@ -209,14 +206,14 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: 'bold',
     color: colors.charcoal,
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   // Loading state styles
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 16,
+    gap: spacing.lg,
   },
   loadingText: {
     fontSize: 16,
@@ -224,51 +221,44 @@ const styles = StyleSheet.create({
   },
   // Empty state styles
   emptyStateCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 32,
+    backgroundColor: colors.white,
+    borderRadius: borderRadius.xl,
+    padding: spacing.xxxl,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    ...shadows.lg,
   },
   emptyStateEmoji: {
-    fontSize: 64,
-    marginBottom: 16,
+    fontSize: 80,
+    marginBottom: spacing.lg,
   },
   emptyStateTitle: {
     fontSize: 20,
     fontWeight: 'bold',
     color: colors.charcoal,
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   emptyStateSubtitle: {
     fontSize: 14,
-    color: '#6B7280',
+    color: colors.gray500,
     textAlign: 'center',
-    marginBottom: 24,
+    marginBottom: spacing.xxl,
     lineHeight: 20,
   },
   // Meal card styles
   mealCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    backgroundColor: colors.white,
+    borderRadius: borderRadius.xl,
+    padding: spacing.xl,
+    ...shadows.lg,
+    ...accents.accentBorderTop,
   },
   imagePlaceholder: {
     height: 200,
-    backgroundColor: '#F3F4F6',
-    borderRadius: 12,
+    backgroundColor: colors.hearthOrangeLight,
+    borderRadius: borderRadius.lg,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   imagePlaceholderText: {
     fontSize: 64,
@@ -277,37 +267,43 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     color: colors.charcoal,
-    marginBottom: 4,
+    marginBottom: spacing.xs,
   },
   mealSubtitle: {
     fontSize: 16,
-    color: '#6B7280',
-    marginBottom: 16,
+    color: colors.gray500,
+    marginBottom: spacing.lg,
   },
   metricsRow: {
     flexDirection: 'row',
-    gap: 16,
-    marginBottom: 16,
-  },
-  metric: {
-    fontSize: 14,
-    color: colors.charcoal,
+    gap: spacing.sm,
+    marginBottom: spacing.lg,
   },
   reasoning: {
+    backgroundColor: colors.hearthOrangeLight,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.hearthOrange,
+    paddingLeft: spacing.md,
+    paddingVertical: spacing.sm,
+    marginBottom: spacing.xl,
+    borderRadius: borderRadius.sm,
+  },
+  reasoningText: {
     fontSize: 14,
     fontStyle: 'italic',
-    color: '#6B7280',
-    marginBottom: 20,
+    color: colors.gray600,
   },
   primaryButton: {
     backgroundColor: colors.hearthOrange,
-    paddingVertical: 16,
-    borderRadius: 12,
+    paddingVertical: spacing.lg,
+    borderRadius: borderRadius.lg,
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: spacing.md,
+    ...shadows.md,
+    ...glows.glowOrange,
   },
   primaryButtonText: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 18,
     fontWeight: 'bold',
   },
@@ -315,18 +311,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   secondaryLinkText: {
-    color: '#6B7280',
+    color: colors.gray500,
     fontSize: 14,
   },
   partnerStatus: {
-    marginTop: 20,
-    padding: 16,
-    backgroundColor: 'rgba(82, 121, 111, 0.1)',
-    borderRadius: 12,
+    ...cards.cardMuted,
+    marginTop: spacing.xl,
   },
   partnerStatusText: {
     fontSize: 14,
     color: colors.sageGreen,
-    marginBottom: 4,
+    marginBottom: spacing.xs,
   },
 });
