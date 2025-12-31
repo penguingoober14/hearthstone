@@ -54,6 +54,8 @@ interface ProgressBarProps {
   striped?: boolean;
   /** Container style override */
   style?: ViewStyle;
+  /** Accessibility label for screen readers */
+  accessibilityLabel?: string;
 }
 
 /**
@@ -94,6 +96,7 @@ export function ProgressBar({
   labelColor = colors.gray600,
   striped = false,
   style,
+  accessibilityLabel = 'Progress',
 }: ProgressBarProps) {
   // Determine bar height from size preset or custom height
   const barHeight = height ?? SIZE_HEIGHTS[size];
@@ -206,10 +209,22 @@ export function ProgressBar({
     </View>
   );
 
+  // Accessibility props for screen readers
+  const accessibilityProps = {
+    accessible: true,
+    accessibilityRole: 'progressbar' as const,
+    accessibilityLabel: `${accessibilityLabel}: ${Math.round(clampedProgress)} percent`,
+    accessibilityValue: {
+      min: 0,
+      max: 100,
+      now: Math.round(clampedProgress),
+    },
+  };
+
   // Wrap with label container if needed
   if (showLabel && labelPosition === 'top') {
     return (
-      <View style={[styles.wrapper, style]}>
+      <View style={[styles.wrapper, style]} {...accessibilityProps}>
         <View style={styles.topLabelContainer}>
           {renderLabel()}
         </View>
@@ -220,7 +235,7 @@ export function ProgressBar({
 
   if (showLabel && labelPosition === 'right') {
     return (
-      <View style={[styles.wrapper, styles.rowWrapper, style]}>
+      <View style={[styles.wrapper, styles.rowWrapper, style]} {...accessibilityProps}>
         <View style={styles.flexGrow}>{progressBarContent}</View>
         {renderLabel()}
       </View>
@@ -228,7 +243,7 @@ export function ProgressBar({
   }
 
   return (
-    <View style={[styles.wrapper, style]}>
+    <View style={[styles.wrapper, style]} {...accessibilityProps}>
       {progressBarContent}
     </View>
   );

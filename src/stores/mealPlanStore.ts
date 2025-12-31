@@ -1,23 +1,36 @@
 import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { persist } from 'zustand/middleware';
+import { createDateAwareStorage } from '../lib/storage';
+import { generateId } from '../lib/uuid';
 import type { MealPlan, Recipe, MealRecommendation } from '../types';
+
+interface CookingSession {
+  planId: string;
+  recipeId: string;
+  currentStep: number;
+  startedAt: string; // ISO string for serialization
+}
 
 interface MealPlanState {
   plans: MealPlan[];
   todayRecommendation: MealRecommendation | null;
+  activeCookingSession: CookingSession | null;
   isLoading: boolean;
   error: string | null;
 
   // Actions
   setPlans: (plans: MealPlan[]) => void;
-  addPlan: (plan: Omit<MealPlan, 'id'>) => void;
+  addPlan: (plan: Omit<MealPlan, 'id'>) => string; // Returns the new plan ID
   updatePlan: (id: string, updates: Partial<MealPlan>) => void;
   removePlan: (id: string) => void;
-  markCompleted: (id: string, rating?: number) => void;
+  markCompleted: (id: string, rating?: number, notes?: string) => void;
   setTodayRecommendation: (rec: MealRecommendation | null) => void;
   getPlansForDate: (date: Date) => MealPlan[];
   getPlansForWeek: (startDate: Date) => MealPlan[];
+  // Cooking session actions
+  startCookingSession: (planId: string, recipeId: string) => void;
+  updateCookingProgress: (step: number) => void;
+  endCookingSession: () => void;
 }
 
 export const useMealPlanStore = create<MealPlanState>()(
@@ -25,6 +38,7 @@ export const useMealPlanStore = create<MealPlanState>()(
     (set, get) => ({
       plans: [],
       todayRecommendation: null,
+      activeCookingSession: null,
       isLoading: false,
       error: null,
 
@@ -35,9 +49,10 @@ export const useMealPlanStore = create<MealPlanState>()(
       addPlan: (plan) => {
         const newPlan: MealPlan = {
           ...plan,
-          id: `plan_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          id: generateId('plan'),
         };
         set((state) => ({ plans: [...state.plans, newPlan] }));
+        return newPlan.id;
       },
 
       updatePlan: (id, updates) => {
@@ -54,11 +69,16 @@ export const useMealPlanStore = create<MealPlanState>()(
         }));
       },
 
-      markCompleted: (id, rating) => {
+      markCompleted: (id, rating, notes) => {
         set((state) => ({
           plans: state.plans.map((plan) =>
             plan.id === id
-              ? { ...plan, completed: true, rating: rating ?? null }
+              ? {
+                  ...plan,
+                  completed: true,
+                  rating: rating ?? null,
+                  notes: notes ?? plan.notes,
+                }
               : plan
           ),
         }));
@@ -66,6 +86,29 @@ export const useMealPlanStore = create<MealPlanState>()(
 
       setTodayRecommendation: (rec) => {
         set({ todayRecommendation: rec });
+      },
+
+      startCookingSession: (planId, recipeId) => {
+        set({
+          activeCookingSession: {
+            planId,
+            recipeId,
+            currentStep: 0,
+            startedAt: new Date().toISOString(),
+          },
+        });
+      },
+
+      updateCookingProgress: (step) => {
+        set((state) => ({
+          activeCookingSession: state.activeCookingSession
+            ? { ...state.activeCookingSession, currentStep: step }
+            : null,
+        }));
+      },
+
+      endCookingSession: () => {
+        set({ activeCookingSession: null });
       },
 
       getPlansForDate: (date) => {
@@ -89,7 +132,7 @@ export const useMealPlanStore = create<MealPlanState>()(
     }),
     {
       name: 'hearthstone-mealplan',
-      storage: createJSONStorage(() => AsyncStorage),
+      storage: createDateAwareStorage(),
     }
   )
 );

@@ -94,6 +94,7 @@ export interface UserPreferences {
   cookingSkillLevel: 'beginner' | 'intermediate' | 'advanced';
   weeknightMaxTime: number; // minutes
   weekendMaxTime: number; // minutes
+  chefMode: boolean; // Hide gamification (XP, badges, levels)
 }
 
 // Gamification Types

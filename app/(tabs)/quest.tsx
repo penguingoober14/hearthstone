@@ -1,19 +1,12 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { useState, useMemo } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useProgressStore } from '../../src/stores';
+import { useProgressStore, useUserStore } from '../../src/stores';
 import { useStreak } from '../../src/hooks';
 import type { Challenge, Achievement } from '../../src/types';
 import { colors, spacing, borderRadius, shadows, glows } from '../../src/lib/theme';
 import { containers, cards, layout, accents } from '../../src/lib/globalStyles';
-import { Typography, BadgePill, ProgressBar, AnimatedCard } from '../../src/components';
-
-// Hardcoded couple challenge (until we have couple store)
-const coupleChallenge = {
-  title: 'Cook Together',
-  progress: 4,
-  total: 5,
-  subtitle: "This week's goal",
-};
+import { Typography, BadgePill, ProgressBar, AnimatedCard, DetailModal } from '../../src/components';
 
 // Helper to get badge variant based on challenge type
 const getChallengeTypeVariant = (type: string): 'primary' | 'success' | 'warning' => {
@@ -45,9 +38,32 @@ const getChallengeBorderColor = (type: string): string => {
 
 export default function QuestScreen() {
   const { progress, activeChallenges } = useProgressStore();
+  const { monthlyStats, partner, user } = useUserStore();
   const { streakMessage, currentStreak, nextMilestone } = useStreak();
 
+  // Check if chef mode is enabled (hides gamification)
+  const isChefMode = user?.preferences?.chefMode ?? false;
+
+  // Modal states
+  const [selectedChallenge, setSelectedChallenge] = useState<Challenge | null>(null);
+  const [showAchievementsModal, setShowAchievementsModal] = useState(false);
+  const [showBrowseModal, setShowBrowseModal] = useState(false);
+
   const xpPercentage = (progress.currentXP / progress.nextLevelXP) * 100;
+
+  // Derive couple challenge from monthly stats
+  const coupleChallenge = useMemo(() => {
+    const couplesMeals = monthlyStats.couplesMeals ?? 0;
+    const weeklyGoal = 5; // Weekly couple cooking goal
+    const progress = Math.min(couplesMeals, weeklyGoal);
+
+    return {
+      title: 'Cook Together',
+      progress,
+      total: weeklyGoal,
+      subtitle: "This week's goal",
+    };
+  }, [monthlyStats.couplesMeals]);
 
   // Get earned achievements (those with unlockedAt date)
   const earnedAchievements = progress.achievements.filter(
@@ -61,39 +77,15 @@ export default function QuestScreen() {
   );
 
   const handleViewChallenge = (challenge: Challenge) => {
-    const progressPercent = Math.round((challenge.progress / challenge.target) * 100);
-    const rewardText = challenge.reward.badge
-      ? `${challenge.reward.xp} XP + ${challenge.reward.badge.emoji} ${challenge.reward.badge.name}`
-      : `${challenge.reward.xp} XP`;
-
-    Alert.alert(
-      `${challenge.emoji} ${challenge.title}`,
-      `${challenge.description}\n\nProgress: ${challenge.progress}/${challenge.target} (${progressPercent}%)\nType: ${challenge.type}\nReward: ${rewardText}\n\nExpires: ${new Date(challenge.expiresAt).toLocaleDateString()}`,
-      [{ text: 'Close', style: 'cancel' }]
-    );
+    setSelectedChallenge(challenge);
   };
 
   const handleBrowseAllChallenges = () => {
-    Alert.alert(
-      'Available Challenges',
-      'Challenge browser coming soon! Check back for new daily, weekly, and special challenges.',
-      [{ text: 'OK', style: 'default' }]
-    );
+    setShowBrowseModal(true);
   };
 
   const handleViewAllAchievements = () => {
-    const achievementsList = progress.achievements
-      .map((a: Achievement) => {
-        const status = a.unlockedAt ? 'Unlocked' : `${a.progress}/${a.target}`;
-        return `${a.emoji} ${a.name} - ${status}`;
-      })
-      .join('\n');
-
-    Alert.alert(
-      'All Achievements',
-      achievementsList || 'No achievements yet. Start cooking to earn your first!',
-      [{ text: 'Close', style: 'cancel' }]
-    );
+    setShowAchievementsModal(true);
   };
 
   const formatReward = (challenge: Challenge): string => {
@@ -102,6 +94,53 @@ export default function QuestScreen() {
     }
     return `${challenge.reward.xp} XP`;
   };
+
+  // Chef Mode: simplified view without gamification
+  if (isChefMode) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <ScrollView showsVerticalScrollIndicator={false}>
+          <View style={styles.levelHeader}>
+            <Typography variant="h1">Cooking Focus</Typography>
+          </View>
+
+          {/* Streak - keep this as it's motivational without being "gamey" */}
+          {currentStreak > 0 && (
+            <View style={styles.streakCard}>
+              <Text style={styles.streakEmoji}>🔥</Text>
+              <Typography variant="h4" style={styles.streakMessage}>
+                {currentStreak} day cooking streak!
+              </Typography>
+            </View>
+          )}
+
+          {/* Simple cooking stats */}
+          <View style={styles.chefModeCard}>
+            <Text style={styles.chefModeEmoji}>👨‍🍳</Text>
+            <Typography variant="h4" style={styles.chefModeTitle}>
+              Chef Mode Enabled
+            </Typography>
+            <Typography variant="bodySmall" color={colors.gray500} style={styles.chefModeDesc}>
+              Gamification elements are hidden. Focus on the joy of cooking!
+            </Typography>
+          </View>
+
+          {/* Couple Cooking - still show if partner connected */}
+          {partner && (
+            <View style={styles.coupleCard}>
+              <Text style={styles.coupleEmoji}>👫</Text>
+              <Typography variant="h4" style={styles.coupleTitle}>
+                Cooking with {partner.name}
+              </Typography>
+              <Typography variant="bodySmall" style={styles.coupleSubtitle}>
+                {coupleChallenge.progress} meals together this week
+              </Typography>
+            </View>
+          )}
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -231,26 +270,135 @@ export default function QuestScreen() {
           )}
         </View>
 
-        {/* Couple Challenges */}
-        <Typography variant="h4" style={styles.sectionTitle}>Couple Challenges</Typography>
-        <View style={styles.coupleCard}>
-          <Text style={styles.coupleEmoji}>👫</Text>
-          <Typography variant="h4" style={styles.coupleTitle}>
-            {coupleChallenge.title}: {coupleChallenge.progress}/{coupleChallenge.total} meals
-          </Typography>
-          <Typography variant="bodySmall" style={styles.coupleSubtitle}>
-            {coupleChallenge.subtitle}
-          </Typography>
-          <Typography variant="bodySmall" color={colors.sageGreen} style={styles.coupleMotivation}>
-            "One more for the badge!"
-          </Typography>
-        </View>
+        {/* Couple Challenges - Only show if partner is connected */}
+        {partner && (
+          <>
+            <Typography variant="h4" style={styles.sectionTitle}>Couple Challenges</Typography>
+            <View style={styles.coupleCard}>
+              <Text style={styles.coupleEmoji}>👫</Text>
+              <Typography variant="h4" style={styles.coupleTitle}>
+                {coupleChallenge.title}: {coupleChallenge.progress}/{coupleChallenge.total} meals
+              </Typography>
+              <Typography variant="bodySmall" style={styles.coupleSubtitle}>
+                {coupleChallenge.subtitle} with {partner.name}
+              </Typography>
+              {coupleChallenge.total - coupleChallenge.progress === 1 ? (
+                <Typography variant="bodySmall" color={colors.sageGreen} style={styles.coupleMotivation}>
+                  "One more for the badge!"
+                </Typography>
+              ) : coupleChallenge.progress >= coupleChallenge.total ? (
+                <Typography variant="bodySmall" color={colors.sageGreen} style={styles.coupleMotivation}>
+                  "Goal reached! Keep cooking together!"
+                </Typography>
+              ) : (
+                <Typography variant="bodySmall" color={colors.sageGreen} style={styles.coupleMotivation}>
+                  "{coupleChallenge.total - coupleChallenge.progress} more to go!"
+                </Typography>
+              )}
+            </View>
+          </>
+        )}
 
         {/* Browse All */}
         <TouchableOpacity style={styles.browseButton} onPress={handleBrowseAllChallenges}>
           <Text style={styles.browseButtonText}>Browse All Challenges →</Text>
         </TouchableOpacity>
       </ScrollView>
+
+      {/* Challenge Detail Modal */}
+      <DetailModal
+        visible={selectedChallenge !== null}
+        onClose={() => setSelectedChallenge(null)}
+        title={selectedChallenge?.title ?? ''}
+        emoji={selectedChallenge?.emoji}
+      >
+        {selectedChallenge && (
+          <View>
+            <Text style={styles.modalDesc}>{selectedChallenge.description}</Text>
+
+            <View style={styles.modalSection}>
+              <Text style={styles.modalLabel}>Progress</Text>
+              <View style={styles.modalProgressRow}>
+                <View style={styles.modalProgressBar}>
+                  <ProgressBar
+                    progress={(selectedChallenge.progress / selectedChallenge.target) * 100}
+                    height={10}
+                    color={colors.sageGreen}
+                  />
+                </View>
+                <Text style={styles.modalProgressText}>
+                  {selectedChallenge.progress}/{selectedChallenge.target}
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.modalSection}>
+              <Text style={styles.modalLabel}>Type</Text>
+              <BadgePill
+                label={selectedChallenge.type}
+                variant={getChallengeTypeVariant(selectedChallenge.type)}
+              />
+            </View>
+
+            <View style={styles.modalSection}>
+              <Text style={styles.modalLabel}>Reward</Text>
+              <Text style={styles.modalValue}>{formatReward(selectedChallenge)}</Text>
+            </View>
+
+            <View style={styles.modalSection}>
+              <Text style={styles.modalLabel}>Expires</Text>
+              <Text style={styles.modalValue}>
+                {new Date(selectedChallenge.expiresAt).toLocaleDateString()}
+              </Text>
+            </View>
+          </View>
+        )}
+      </DetailModal>
+
+      {/* Achievements Modal */}
+      <DetailModal
+        visible={showAchievementsModal}
+        onClose={() => setShowAchievementsModal(false)}
+        title="All Achievements"
+        emoji="🏆"
+      >
+        {progress.achievements.length === 0 ? (
+          <Text style={styles.modalDesc}>
+            No achievements yet. Start cooking to earn your first!
+          </Text>
+        ) : (
+          <View style={styles.achievementsList}>
+            {progress.achievements.map((a: Achievement) => (
+              <View key={a.id} style={styles.achievementRow}>
+                <Text style={styles.achievementRowEmoji}>{a.emoji}</Text>
+                <View style={styles.achievementRowInfo}>
+                  <Text style={styles.achievementRowName}>{a.name}</Text>
+                  <Text style={styles.achievementRowStatus}>
+                    {a.unlockedAt ? 'Unlocked' : `${a.progress}/${a.target}`}
+                  </Text>
+                </View>
+                {a.unlockedAt && <Text style={styles.achievementCheck}>✓</Text>}
+              </View>
+            ))}
+          </View>
+        )}
+      </DetailModal>
+
+      {/* Browse Challenges Modal */}
+      <DetailModal
+        visible={showBrowseModal}
+        onClose={() => setShowBrowseModal(false)}
+        title="Available Challenges"
+        emoji="🎯"
+      >
+        <Text style={styles.modalDesc}>
+          Challenge browser coming soon! Check back for new daily, weekly, and special challenges.
+        </Text>
+        <View style={styles.comingSoonCard}>
+          <Text style={styles.comingSoonEmoji}>🚀</Text>
+          <Text style={styles.comingSoonText}>More challenges unlocking daily!</Text>
+        </View>
+      </DetailModal>
     </SafeAreaView>
   );
 }
@@ -456,5 +604,107 @@ const styles = StyleSheet.create({
     color: colors.hearthOrange,
     fontSize: 16,
     fontWeight: '600',
+  },
+  // Modal styles
+  modalDesc: {
+    fontSize: 16,
+    color: colors.gray600,
+    lineHeight: 24,
+    marginBottom: spacing.lg,
+  },
+  modalSection: {
+    marginBottom: spacing.lg,
+  },
+  modalLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.gray500,
+    textTransform: 'uppercase',
+    marginBottom: spacing.xs,
+  },
+  modalValue: {
+    fontSize: 16,
+    color: colors.charcoal,
+  },
+  modalProgressRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  modalProgressBar: {
+    flex: 1,
+  },
+  modalProgressText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.charcoal,
+  },
+  achievementsList: {
+    gap: spacing.sm,
+  },
+  achievementRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing.md,
+    backgroundColor: colors.gray50,
+    borderRadius: borderRadius.md,
+  },
+  achievementRowEmoji: {
+    fontSize: 24,
+    marginRight: spacing.md,
+  },
+  achievementRowInfo: {
+    flex: 1,
+  },
+  achievementRowName: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.charcoal,
+  },
+  achievementRowStatus: {
+    fontSize: 12,
+    color: colors.gray500,
+  },
+  achievementCheck: {
+    fontSize: 16,
+    color: colors.sageGreen,
+    fontWeight: 'bold',
+  },
+  comingSoonCard: {
+    backgroundColor: colors.hearthOrangeLight,
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
+    alignItems: 'center',
+  },
+  comingSoonEmoji: {
+    fontSize: 32,
+    marginBottom: spacing.sm,
+  },
+  comingSoonText: {
+    fontSize: 14,
+    color: colors.hearthOrange,
+    fontWeight: '500',
+  },
+  // Chef Mode styles
+  chefModeCard: {
+    backgroundColor: colors.white,
+    borderRadius: borderRadius.xl,
+    padding: spacing.xxl,
+    alignItems: 'center',
+    marginBottom: spacing.xl,
+    borderLeftWidth: 4,
+    borderLeftColor: colors.charcoal,
+    ...shadows.md,
+  },
+  chefModeEmoji: {
+    fontSize: 48,
+    marginBottom: spacing.md,
+  },
+  chefModeTitle: {
+    textAlign: 'center',
+    marginBottom: spacing.sm,
+  },
+  chefModeDesc: {
+    textAlign: 'center',
   },
 });

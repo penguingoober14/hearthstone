@@ -1,8 +1,9 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
+  SectionList,
   ScrollView,
   TouchableOpacity,
   Modal,
@@ -16,7 +17,7 @@ import { useExpiry } from '../../src/hooks';
 import type { InventoryItem, FoodCategory } from '../../src/types';
 import { colors, spacing, borderRadius, shadows } from '../../src/lib/theme';
 import { containers, cards, layout, accents, dividers } from '../../src/lib/globalStyles';
-import { Typography, BadgePill } from '../../src/components';
+import { Typography, BadgePill, useToast } from '../../src/components';
 
 const LOCATIONS: Array<InventoryItem['location']> = ['fridge', 'freezer', 'pantry'];
 const CATEGORIES: FoodCategory[] = [
@@ -86,8 +87,11 @@ function InventoryItemRow({ item, daysLeft, isEditMode, onDelete }: InventoryIte
         <TouchableOpacity
           style={styles.deleteButton}
           onPress={() => onDelete(item.id)}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityRole="button"
+          accessibilityLabel={`Delete ${item.name}`}
         >
-          <Text style={styles.deleteButtonText}>X</Text>
+          <Text style={styles.deleteButtonText}>✕</Text>
         </TouchableOpacity>
       )}
     </View>
@@ -246,6 +250,7 @@ function AddItemModal({ visible, onClose, onSave, defaultLocation = 'fridge' }: 
 export default function InventoryScreen() {
   const { items, addItem, removeItem, getExpiringSoon, getByLocation } = useInventoryStore();
   const { getDaysUntilExpiry } = useExpiry();
+  const { showToast } = useToast();
 
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
   const [editModeSection, setEditModeSection] = useState<string | null>(null);
@@ -260,8 +265,9 @@ export default function InventoryScreen() {
   const handleAddItem = useCallback(
     (item: Omit<InventoryItem, 'id' | 'addedDate'>) => {
       addItem(item);
+      showToast(`${item.name} added to ${item.location}`);
     },
-    [addItem]
+    [addItem, showToast]
   );
 
   const handleDeleteItem = useCallback(
@@ -291,40 +297,106 @@ export default function InventoryScreen() {
     Alert.alert('Coming Soon', 'Receipt scanning will be available in a future update!');
   };
 
-  const renderSection = (
-    title: string,
-    sectionKey: string,
-    items: InventoryItem[],
-    showEdit: boolean = true
-  ) => {
-    const isEditing = editModeSection === sectionKey;
+  // Build sections for SectionList
+  type SectionData = {
+    key: string;
+    title: string;
+    data: InventoryItem[];
+    isUrgent?: boolean;
+    showEdit?: boolean;
+  };
 
-    return (
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>{title}</Text>
-          {showEdit && (
-            <TouchableOpacity onPress={() => toggleEditMode(sectionKey)}>
-              <Text style={styles.editLink}>{isEditing ? 'Done' : 'Edit'}</Text>
-            </TouchableOpacity>
+  const sections = useMemo<SectionData[]>(() => {
+    const result: SectionData[] = [];
+
+    if (useSoonItems.length > 0) {
+      result.push({
+        key: 'useSoon',
+        title: '! USE SOON',
+        data: useSoonItems,
+        isUrgent: true,
+        showEdit: false,
+      });
+    }
+
+    result.push(
+      { key: 'fridge', title: 'FRIDGE', data: fridgeItems, showEdit: true },
+      { key: 'pantry', title: 'PANTRY', data: pantryItems, showEdit: true },
+      { key: 'freezer', title: 'FREEZER', data: freezerItems, showEdit: true }
+    );
+
+    return result;
+  }, [useSoonItems, fridgeItems, pantryItems, freezerItems]);
+
+  const renderSectionHeader = useCallback(
+    ({ section }: { section: SectionData }) => {
+      const isEditing = editModeSection === section.key;
+
+      return (
+        <View style={[
+          styles.sectionHeaderContainer,
+          section.isUrgent && styles.urgentSection
+        ]}>
+          <View style={styles.sectionHeader}>
+            <Text style={[styles.sectionTitle, section.isUrgent && styles.urgentTitle]}>
+              {section.title}
+            </Text>
+            {section.showEdit !== false && (
+              <TouchableOpacity
+                style={[styles.editButton, isEditing && styles.editButtonActive]}
+                onPress={() => toggleEditMode(section.key)}
+                accessibilityRole="button"
+                accessibilityLabel={isEditing ? 'Done editing' : 'Edit items'}
+              >
+                <Text style={[styles.editButtonText, isEditing && styles.editButtonTextActive]}>
+                  {isEditing ? '✓ Done' : '✎ Edit'}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+          {section.data.length === 0 && (
+            <Text style={styles.emptyText}>No items</Text>
           )}
         </View>
-        {items.length === 0 ? (
-          <Text style={styles.emptyText}>No items</Text>
-        ) : (
-          items.map((item) => (
-            <InventoryItemRow
-              key={item.id}
-              item={item}
-              daysLeft={getDaysUntilExpiry(item)}
-              isEditMode={isEditing}
-              onDelete={handleDeleteItem}
-            />
-          ))
-        )}
-      </View>
-    );
-  };
+      );
+    },
+    [editModeSection, toggleEditMode]
+  );
+
+  const renderItem = useCallback(
+    ({ item, section }: { item: InventoryItem; section: SectionData }) => {
+      const isEditing = editModeSection === section.key && section.showEdit !== false;
+      return (
+        <View style={section.isUrgent ? styles.urgentItemContainer : styles.itemContainer}>
+          <InventoryItemRow
+            item={item}
+            daysLeft={getDaysUntilExpiry(item)}
+            isEditMode={isEditing}
+            onDelete={handleDeleteItem}
+          />
+        </View>
+      );
+    },
+    [editModeSection, getDaysUntilExpiry, handleDeleteItem]
+  );
+
+  const ListFooter = useCallback(() => (
+    <View>
+      <TouchableOpacity style={styles.scanButton} onPress={handleScanReceipt}>
+        <Text style={styles.scanButtonText}>📷 Scan Receipt</Text>
+      </TouchableOpacity>
+
+      {items.length === 0 && (
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyStateEmoji}>🥗</Text>
+          <Text style={styles.emptyStateTitle}>Your inventory is empty</Text>
+          <Text style={styles.emptyStateText}>
+            Add items to start tracking your food and reduce waste!
+          </Text>
+        </View>
+      )}
+    </View>
+  ), [items.length, handleScanReceipt]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -338,48 +410,15 @@ export default function InventoryScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Use Soon Section */}
-        {useSoonItems.length > 0 && (
-          <View style={styles.urgentSection}>
-            <Text style={styles.urgentTitle}>! USE SOON</Text>
-            {useSoonItems.map((item) => (
-              <InventoryItemRow
-                key={item.id}
-                item={item}
-                daysLeft={getDaysUntilExpiry(item)}
-                isEditMode={false}
-                onDelete={handleDeleteItem}
-              />
-            ))}
-          </View>
-        )}
-
-        {/* Fridge Section */}
-        {renderSection('FRIDGE', 'fridge', fridgeItems)}
-
-        {/* Pantry Section */}
-        {renderSection('PANTRY', 'pantry', pantryItems)}
-
-        {/* Freezer Section */}
-        {renderSection('FREEZER', 'freezer', freezerItems)}
-
-        {/* Scan Receipt Button */}
-        <TouchableOpacity style={styles.scanButton} onPress={handleScanReceipt}>
-          <Text style={styles.scanButtonText}>📷 Scan Receipt</Text>
-        </TouchableOpacity>
-
-        {/* Empty State */}
-        {items.length === 0 && (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyStateEmoji}>🥗</Text>
-            <Text style={styles.emptyStateTitle}>Your inventory is empty</Text>
-            <Text style={styles.emptyStateText}>
-              Add items to start tracking your food and reduce waste!
-            </Text>
-          </View>
-        )}
-      </ScrollView>
+      <SectionList
+        sections={sections}
+        keyExtractor={(item) => item.id}
+        renderItem={renderItem}
+        renderSectionHeader={renderSectionHeader}
+        ListFooterComponent={ListFooter}
+        showsVerticalScrollIndicator={false}
+        stickySectionHeadersEnabled={false}
+      />
 
       <AddItemModal
         visible={isAddModalVisible}
@@ -432,7 +471,23 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
     color: colors.softRed,
-    marginBottom: spacing.md,
+  },
+  urgentItemContainer: {
+    backgroundColor: colors.softRedLight,
+    paddingHorizontal: spacing.lg,
+  },
+  sectionHeaderContainer: {
+    backgroundColor: colors.white,
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
+    marginBottom: spacing.sm,
+    marginTop: spacing.md,
+    ...shadows.sm,
+  },
+  itemContainer: {
+    backgroundColor: colors.white,
+    paddingHorizontal: spacing.lg,
+    marginTop: -spacing.sm,
   },
   section: {
     backgroundColor: colors.white,
@@ -452,9 +507,25 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: colors.charcoal,
   },
-  editLink: {
+  editButton: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.gray100,
+    borderWidth: 1,
+    borderColor: colors.gray200,
+  },
+  editButtonActive: {
+    backgroundColor: colors.sageGreen,
+    borderColor: colors.sageGreen,
+  },
+  editButtonText: {
     fontSize: 14,
-    color: colors.hearthOrange,
+    color: colors.gray600,
+    fontWeight: '500',
+  },
+  editButtonTextActive: {
+    color: colors.white,
   },
   itemRow: {
     flexDirection: 'row',
@@ -497,16 +568,16 @@ const styles = StyleSheet.create({
   },
   deleteButton: {
     backgroundColor: colors.softRed,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
     ...shadows.sm,
   },
   deleteButtonText: {
     color: colors.white,
-    fontSize: 12,
+    fontSize: 16,
     fontWeight: 'bold',
   },
   emptyText: {

@@ -1,13 +1,17 @@
-import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Alert, Switch } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useUserStore, useProgressStore } from '../../src/stores';
 import { colors, spacing, borderRadius, shadows, glows } from '../../src/lib/theme';
 import { containers, cards, layout } from '../../src/lib/globalStyles';
 import { Typography, BadgePill, AnimatedCard } from '../../src/components';
 
 export default function DashboardScreen() {
-  const { monthlyStats, weeklyStats, partner } = useUserStore();
+  const { monthlyStats, weeklyStats, partner, user, updatePreferences } = useUserStore();
   const { progress } = useProgressStore();
+
+  // Chef mode toggle
+  const isChefMode = user?.preferences?.chefMode ?? false;
 
   // Derive stats from stores with safe defaults
   const streak = progress.streak ?? 0;
@@ -56,6 +60,10 @@ export default function DashboardScreen() {
     );
   };
 
+  const handleChefModeToggle = (value: boolean) => {
+    updatePreferences({ chefMode: value });
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
@@ -80,6 +88,7 @@ export default function DashboardScreen() {
             mountDelay={0}
             elevation="sm"
           >
+            <Ionicons name="information-circle-outline" size={16} color={colors.gray400} style={styles.statInfoIcon} />
             <Text style={styles.statNumber}>{monthSaved}</Text>
             <Text style={styles.statLabel}>saved vs eat out</Text>
           </AnimatedCard>
@@ -90,6 +99,7 @@ export default function DashboardScreen() {
             mountDelay={100}
             elevation="sm"
           >
+            <Ionicons name="information-circle-outline" size={16} color={colors.gray400} style={styles.statInfoIcon} />
             <Text style={styles.statNumber}>{monthMeals}</Text>
             <Text style={styles.statLabel}>meals cooked</Text>
           </AnimatedCard>
@@ -100,6 +110,7 @@ export default function DashboardScreen() {
             mountDelay={200}
             elevation="sm"
           >
+            <Ionicons name="information-circle-outline" size={16} color={colors.gray400} style={styles.statInfoIcon} />
             <Text style={styles.statNumber}>{weeklyHoursSaved}</Text>
             <Text style={styles.statLabel}>hrs/wk saved</Text>
           </AnimatedCard>
@@ -142,6 +153,25 @@ export default function DashboardScreen() {
             </Text>
           </View>
         )}
+
+        {/* Settings */}
+        <Text style={styles.sectionTitle}>Settings</Text>
+        <View style={styles.settingsCard}>
+          <View style={styles.settingRow}>
+            <View style={styles.settingInfo}>
+              <Text style={styles.settingLabel}>Chef Mode</Text>
+              <Text style={styles.settingDesc}>
+                Hide gamification (XP, levels, challenges)
+              </Text>
+            </View>
+            <Switch
+              value={isChefMode}
+              onValueChange={handleChefModeToggle}
+              trackColor={{ false: colors.gray300, true: colors.sageGreenLight }}
+              thumbColor={isChefMode ? colors.sageGreen : colors.gray400}
+            />
+          </View>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -196,6 +226,12 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     borderTopWidth: 3,
+    position: 'relative',
+  },
+  statInfoIcon: {
+    position: 'absolute',
+    top: spacing.xs,
+    right: spacing.xs,
   },
   statCardOrange: {
     borderTopColor: colors.hearthOrange,
@@ -293,5 +329,31 @@ const styles = StyleSheet.create({
     color: colors.sageGreen,
     textAlign: 'center',
     fontStyle: 'italic',
+  },
+  settingsCard: {
+    backgroundColor: colors.white,
+    borderRadius: borderRadius.xl,
+    padding: spacing.lg,
+    marginBottom: spacing.xxxl + spacing.sm,
+    ...shadows.md,
+  },
+  settingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  settingInfo: {
+    flex: 1,
+    marginRight: spacing.md,
+  },
+  settingLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.charcoal,
+    marginBottom: spacing.xs,
+  },
+  settingDesc: {
+    fontSize: 13,
+    color: colors.gray500,
   },
 });

@@ -162,7 +162,7 @@ export default function PrepScreen() {
             <View style={styles.emptyState}>
               <Text style={styles.emptyStateText}>No meals planned for this week</Text>
               <Text style={styles.emptyStateSubtext}>
-                Head to the Plan tab to add meals
+                Head to the Tonight tab to get meal recommendations
               </Text>
             </View>
           )}

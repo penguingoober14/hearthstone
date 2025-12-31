@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { View, Text, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
 // Color palette from design doc
 const colors = {
@@ -10,19 +10,28 @@ const colors = {
   inactive: '#9CA3AF',
 };
 
+type IconName = keyof typeof Ionicons.glyphMap;
+
+const TAB_ICONS: Record<string, { active: IconName; inactive: IconName }> = {
+  index: { active: 'flame', inactive: 'flame-outline' },
+  dashboard: { active: 'stats-chart', inactive: 'stats-chart-outline' },
+  inventory: { active: 'cube', inactive: 'cube-outline' },
+  prep: { active: 'calendar', inactive: 'calendar-outline' },
+  quest: { active: 'trophy', inactive: 'trophy-outline' },
+};
+
 function TabIcon({ name, focused }: { name: string; focused: boolean }) {
-  const icons: Record<string, string> = {
-    index: '🏠',
-    dashboard: '📊',
-    inventory: '🧊',
-    prep: '📅',
-    quest: '🏆',
-  };
+  const iconSet = TAB_ICONS[name] || { active: 'ellipse', inactive: 'ellipse-outline' };
+  const iconName = focused ? iconSet.active : iconSet.inactive;
+  const color = focused ? colors.hearthOrange : colors.inactive;
 
   return (
-    <Text style={[styles.icon, { opacity: focused ? 1 : 0.5 }]}>
-      {icons[name] || '•'}
-    </Text>
+    <Ionicons
+      name={iconName}
+      size={24}
+      color={color}
+      accessibilityLabel={`${name} tab`}
+    />
   );
 }
 
@@ -77,9 +86,3 @@ export default function TabLayout() {
     </Tabs>
   );
 }
-
-const styles = StyleSheet.create({
-  icon: {
-    fontSize: 24,
-  },
-});

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { persist } from 'zustand/middleware';
+import { createDateAwareStorage } from '../lib/storage';
+import { generateId } from '../lib/uuid';
 import type { User, UserPreferences, MonthlyStats, WeeklyStats } from '../types';
 
 interface UserState {
@@ -10,6 +11,7 @@ interface UserState {
   weeklyStats: WeeklyStats;
   isLoading: boolean;
   isAuthenticated: boolean;
+  onboardingComplete: boolean;
 
   // Actions
   setUser: (user: User | null) => void;
@@ -17,6 +19,7 @@ interface UserState {
   updatePreferences: (preferences: Partial<UserPreferences>) => void;
   updateMonthlyStats: (stats: Partial<MonthlyStats>) => void;
   updateWeeklyStats: (stats: Partial<WeeklyStats>) => void;
+  completeOnboarding: (name: string, preferences: Partial<UserPreferences>) => void;
   logout: () => void;
 }
 
@@ -27,6 +30,7 @@ const defaultPreferences: UserPreferences = {
   cookingSkillLevel: 'intermediate',
   weeknightMaxTime: 45,
   weekendMaxTime: 90,
+  chefMode: false,
 };
 
 const defaultMonthlyStats: MonthlyStats = {
@@ -55,6 +59,7 @@ export const useUserStore = create<UserState>()(
       weeklyStats: defaultWeeklyStats,
       isLoading: false,
       isAuthenticated: false,
+      onboardingComplete: false,
 
       setUser: (user) => {
         set({
@@ -100,11 +105,32 @@ export const useUserStore = create<UserState>()(
         }));
       },
 
+      completeOnboarding: (name, preferences) => {
+        const newUser: User = {
+          id: generateId('user'),
+          name,
+          email: '',
+          avatarUrl: null,
+          preferences: {
+            ...defaultPreferences,
+            ...preferences,
+          },
+          partnerId: null,
+        };
+
+        set({
+          user: newUser,
+          isAuthenticated: true,
+          onboardingComplete: true,
+        });
+      },
+
       logout: () => {
         set({
           user: null,
           partner: null,
           isAuthenticated: false,
+          onboardingComplete: false,
           monthlyStats: defaultMonthlyStats,
           weeklyStats: defaultWeeklyStats,
         });
@@ -112,7 +138,7 @@ export const useUserStore = create<UserState>()(
     }),
     {
       name: 'hearthstone-user',
-      storage: createJSONStorage(() => AsyncStorage),
+      storage: createDateAwareStorage(),
     }
   )
 );

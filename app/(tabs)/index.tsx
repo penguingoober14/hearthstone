@@ -1,62 +1,58 @@
+import { useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { useMealPlanStore, useUserStore } from '../../src/stores';
 import { colors, spacing, borderRadius, shadows, glows } from '../../src/lib/theme';
 import { containers, cards, layout, accents } from '../../src/lib/globalStyles';
-import { Typography, BadgePill, AnimatedContainer } from '../../src/components';
+import { Typography, BadgePill, AnimatedContainer, useToast } from '../../src/components';
+import { useRecommendation } from '../../src/hooks/useRecommendation';
+
+const CUISINE_EMOJIS: Record<string, string> = {
+  Indian: '🍛',
+  Italian: '🍝',
+  Mexican: '🌮',
+  Japanese: '🍱',
+  Chinese: '🥡',
+};
 
 export default function TonightScreen() {
+  const router = useRouter();
+  const { showToast } = useToast();
   // Get data from stores
-  const { todayRecommendation, setTodayRecommendation, markCompleted, addPlan, isLoading } = useMealPlanStore();
-  const { partner } = useUserStore();
+  const { todayRecommendation } = useMealPlanStore();
+  const { partner, onboardingComplete } = useUserStore();
+  const { fetchRecommendation, rejectAndGetNext, isLoading } = useRecommendation();
+
+  // Redirect to onboarding if not complete
+  useEffect(() => {
+    if (!onboardingComplete) {
+      router.replace('/onboarding');
+    }
+  }, [onboardingComplete, router]);
+
+  // Auto-fetch recommendation on mount if none exists
+  useEffect(() => {
+    if (onboardingComplete && !todayRecommendation && !isLoading) {
+      fetchRecommendation();
+    }
+  }, [onboardingComplete]); // Only run once on mount after onboarding
 
   const handleLetsCook = () => {
     if (!todayRecommendation) return;
-
-    // Add to meal plan and mark as completed
-    addPlan({
-      date: new Date(),
-      mealType: 'dinner',
-      recipe: todayRecommendation.recipe,
-      notes: todayRecommendation.reasoning,
-      completed: true,
-      rating: null,
-    });
-
-    // Clear the recommendation after cooking
-    setTodayRecommendation(null);
+    showToast(`Starting ${todayRecommendation.recipe.name}!`);
+    // Navigate to cooking guide screen
+    router.push(`/cooking/${todayRecommendation.recipe.id}` as any);
   };
 
   const handleNotTonight = () => {
-    // Clear the recommendation (future: could implement rejectAndGetNext)
-    setTodayRecommendation(null);
+    // Get a different recommendation
+    rejectAndGetNext('not_in_mood');
   };
 
   const handleGenerateRecommendation = () => {
-    // TODO: Connect to recommendation engine
-    // For now, set a sample recommendation for testing
-    setTodayRecommendation({
-      recipe: {
-        id: 'sample_1',
-        name: 'Chicken Tikka Masala',
-        description: 'Classic Indian curry with tender chicken in creamy tomato sauce',
-        imageUrl: null,
-        prepTime: 15,
-        cookTime: 20,
-        servings: 4,
-        difficulty: 'medium',
-        cuisine: 'Indian',
-        ingredients: [],
-        steps: [],
-        tags: ['curry', 'chicken', 'indian'],
-        estimatedCost: 8,
-      },
-      score: 0.92,
-      reasoning: 'Uses the chicken expiring tomorrow + your leftover yogurt',
-      expiringIngredients: [],
-      missingIngredients: [],
-      estimatedSavings: 5,
-    });
+    // Fetch recommendation using the hook (uses sample recipes with smart selection)
+    fetchRecommendation();
   };
 
   // Loading state
@@ -129,11 +125,7 @@ export default function TonightScreen() {
           {/* Placeholder for meal image */}
           <View style={styles.imagePlaceholder}>
             <Text style={styles.imagePlaceholderText}>
-              {recipe.cuisine === 'Indian' ? '🍛' :
-               recipe.cuisine === 'Italian' ? '🍝' :
-               recipe.cuisine === 'Mexican' ? '🌮' :
-               recipe.cuisine === 'Japanese' ? '🍱' :
-               recipe.cuisine === 'Chinese' ? '🥡' : '🍽️'}
+              {CUISINE_EMOJIS[recipe.cuisine] ?? '🍽️'}
             </Text>
           </View>
 
@@ -170,11 +162,17 @@ export default function TonightScreen() {
         {partner ? (
           <>
             <Text style={styles.partnerStatusText}>
-              Partner: {partner.name} is connected
+              Cooking with {partner.name} tonight
             </Text>
             <Text style={styles.partnerStatusText}>
               Serving {recipe.servings} people
             </Text>
+            <TouchableOpacity
+              style={styles.claimCookingButton}
+              onPress={() => showToast("You've claimed tonight's cooking!")}
+            >
+              <Text style={styles.claimCookingButtonText}>I'll cook tonight</Text>
+            </TouchableOpacity>
           </>
         ) : (
           <Text style={styles.partnerStatusText}>
@@ -324,5 +322,18 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.sageGreen,
     marginBottom: spacing.xs,
+  },
+  claimCookingButton: {
+    backgroundColor: colors.sageGreen,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    borderRadius: borderRadius.md,
+    marginTop: spacing.sm,
+    alignSelf: 'flex-start',
+  },
+  claimCookingButtonText: {
+    color: colors.white,
+    fontSize: 14,
+    fontWeight: '600',
   },
 });

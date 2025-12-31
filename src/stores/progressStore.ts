@@ -1,6 +1,7 @@
 import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { persist } from 'zustand/middleware';
+import { createDateAwareStorage } from '../lib/storage';
+import { generateId } from '../lib/uuid';
 import type { UserProgress, Achievement, Badge, Challenge } from '../types';
 
 // XP required for each level (exponential curve)
@@ -8,10 +9,82 @@ const getXPForLevel = (level: number): number => {
   return Math.floor(1000 * Math.pow(1.2, level - 1));
 };
 
+// Beginner challenge templates
+const BEGINNER_CHALLENGES: Omit<Challenge, 'id' | 'expiresAt'>[] = [
+  {
+    title: 'Your First Meal',
+    description: 'Complete your first recipe from start to finish',
+    emoji: '🌟',
+    type: 'special',
+    progress: 0,
+    target: 1,
+    reward: { xp: 100 },
+  },
+  {
+    title: 'Learn to Dice',
+    description: 'Complete a recipe that requires dicing vegetables',
+    emoji: '🔪',
+    type: 'special',
+    progress: 0,
+    target: 1,
+    reward: { xp: 75 },
+  },
+  {
+    title: 'Breakfast Champion',
+    description: 'Cook breakfast 3 times this week',
+    emoji: '🍳',
+    type: 'weekly',
+    progress: 0,
+    target: 3,
+    reward: { xp: 150 },
+  },
+  {
+    title: 'Kitchen Apprentice',
+    description: 'Complete 5 easy recipes',
+    emoji: '👨‍🍳',
+    type: 'special',
+    progress: 0,
+    target: 5,
+    reward: { xp: 200 },
+  },
+];
+
+// Standard challenges for all users
+const STANDARD_CHALLENGES: Omit<Challenge, 'id' | 'expiresAt'>[] = [
+  {
+    title: 'Daily Cook',
+    description: 'Cook at least one meal today',
+    emoji: '🔥',
+    type: 'daily',
+    progress: 0,
+    target: 1,
+    reward: { xp: 50 },
+  },
+  {
+    title: 'Weekend Chef',
+    description: 'Cook 3 meals this weekend',
+    emoji: '🍽️',
+    type: 'weekly',
+    progress: 0,
+    target: 3,
+    reward: { xp: 100 },
+  },
+  {
+    title: 'World Traveler',
+    description: 'Try recipes from 3 different cuisines',
+    emoji: '🌍',
+    type: 'weekly',
+    progress: 0,
+    target: 3,
+    reward: { xp: 125 },
+  },
+];
+
 interface ProgressState {
   progress: UserProgress;
   activeChallenges: Challenge[];
   isLoading: boolean;
+  challengesInitialized: boolean;
 
   // Actions
   addXP: (amount: number) => void;
@@ -20,6 +93,7 @@ interface ProgressState {
   updateChallengeProgress: (challengeId: string, progress: number) => void;
   addChallenge: (challenge: Challenge) => void;
   removeChallenge: (challengeId: string) => void;
+  initializeChallenges: (skillLevel: 'beginner' | 'intermediate' | 'advanced') => void;
   resetProgress: () => void;
 }
 
@@ -39,6 +113,7 @@ export const useProgressStore = create<ProgressState>()(
       progress: initialProgress,
       activeChallenges: [],
       isLoading: false,
+      challengesInitialized: false,
 
       addXP: (amount) => {
         set((state) => {
@@ -115,16 +190,69 @@ export const useProgressStore = create<ProgressState>()(
         }));
       },
 
+      initializeChallenges: (skillLevel) => {
+        const state = get();
+        // Only initialize once
+        if (state.challengesInitialized) return;
+
+        // Calculate expiry dates
+        const dailyExpiry = new Date();
+        dailyExpiry.setHours(23, 59, 59, 999);
+
+        const weeklyExpiry = new Date();
+        weeklyExpiry.setDate(weeklyExpiry.getDate() + (7 - weeklyExpiry.getDay()));
+        weeklyExpiry.setHours(23, 59, 59, 999);
+
+        const monthlyExpiry = new Date();
+        monthlyExpiry.setMonth(monthlyExpiry.getMonth() + 1);
+        monthlyExpiry.setDate(0);
+        monthlyExpiry.setHours(23, 59, 59, 999);
+
+        // Convert template to full challenge with ID and expiry
+        const createChallenge = (
+          template: Omit<Challenge, 'id' | 'expiresAt'>
+        ): Challenge => ({
+          ...template,
+          id: generateId('challenge'),
+          expiresAt:
+            template.type === 'daily'
+              ? dailyExpiry
+              : template.type === 'weekly'
+              ? weeklyExpiry
+              : monthlyExpiry,
+        });
+
+        // Add beginner challenges for beginners
+        const challenges: Challenge[] = [];
+
+        if (skillLevel === 'beginner') {
+          BEGINNER_CHALLENGES.forEach((template) => {
+            challenges.push(createChallenge(template));
+          });
+        }
+
+        // Add standard challenges for all users
+        STANDARD_CHALLENGES.forEach((template) => {
+          challenges.push(createChallenge(template));
+        });
+
+        set({
+          activeChallenges: challenges,
+          challengesInitialized: true,
+        });
+      },
+
       resetProgress: () => {
         set({
           progress: initialProgress,
           activeChallenges: [],
+          challengesInitialized: false,
         });
       },
     }),
     {
       name: 'hearthstone-progress',
-      storage: createJSONStorage(() => AsyncStorage),
+      storage: createDateAwareStorage(),
     }
   )
 );

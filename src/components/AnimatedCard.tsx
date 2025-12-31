@@ -19,6 +19,10 @@ export interface AnimatedCardProps extends Omit<CardProps, 'style'> {
   mountDelay?: number;
   /** Additional styles to apply (supports array syntax) */
   style?: StyleProp<ViewStyle>;
+  /** Accessibility label for screen readers */
+  accessibilityLabel?: string;
+  /** Accessibility hint for screen readers */
+  accessibilityHint?: string;
 }
 
 export function AnimatedCard({
@@ -29,6 +33,8 @@ export function AnimatedCard({
   mountDelay = 0,
   style,
   elevation,
+  accessibilityLabel,
+  accessibilityHint,
   ...cardProps
 }: AnimatedCardProps) {
   // Animation values
@@ -122,14 +128,26 @@ export function AnimatedCard({
   if (!onPress) {
     // Non-pressable version - just mount animation
     return (
-      <Animated.View style={[animatedTransformStyle, animatedShadowStyle]}>
+      <Animated.View
+        style={[animatedTransformStyle, animatedShadowStyle]}
+        accessible={!!accessibilityLabel}
+        accessibilityLabel={accessibilityLabel}
+      >
         {cardContent}
       </Animated.View>
     );
   }
 
   return (
-    <Pressable onPress={onPress} onPressIn={handlePressIn} onPressOut={handlePressOut}>
+    <Pressable
+      onPress={onPress}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      accessible
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      accessibilityHint={accessibilityHint || 'Tap to view details'}
+    >
       <Animated.View style={[animatedTransformStyle, animatedShadowStyle]}>
         {cardContent}
       </Animated.View>

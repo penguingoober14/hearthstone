@@ -1,6 +1,7 @@
 import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { persist } from 'zustand/middleware';
+import { createDateAwareStorage } from '../lib/storage';
+import { generateId } from '../lib/uuid';
 import type { InventoryItem, FoodCategory } from '../types';
 
 interface InventoryState {
@@ -28,7 +29,7 @@ export const useInventoryStore = create<InventoryState>()(
       addItem: (item) => {
         const newItem: InventoryItem = {
           ...item,
-          id: `inv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          id: generateId('inv'),
           addedDate: new Date(),
         };
         set((state) => ({ items: [...state.items, newItem] }));
@@ -74,7 +75,7 @@ export const useInventoryStore = create<InventoryState>()(
     }),
     {
       name: 'hearthstone-inventory',
-      storage: createJSONStorage(() => AsyncStorage),
+      storage: createDateAwareStorage(),
     }
   )
 );
