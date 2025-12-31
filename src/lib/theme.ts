@@ -68,10 +68,10 @@ export const typography = {
   semibold: '600' as const,
   bold: '700' as const,
 
-  // Line heights
-  tight: 1.2,
-  normal: 1.5,
-  relaxed: 1.75,
+  // Line heights (prefixed to avoid conflict with fontWeight normal)
+  lineHeightTight: 1.2,
+  lineHeightNormal: 1.5,
+  lineHeightRelaxed: 1.75,
 } as const;
 
 export const shadows = {
@@ -95,5 +95,77 @@ export const shadows = {
     shadowOpacity: 0.1,
     shadowRadius: 12,
     elevation: 5,
+  },
+  xl: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 24,
+    elevation: 8,
+  },
+  glow: {
+    shadowColor: '#E85D04', // hearthOrange
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 6,
+  },
+} as const;
+
+// Gradient color arrays for LinearGradient components
+export const gradients = {
+  primaryGradient: ['#E85D04', '#DC2626'] as const,
+  successGradient: ['#10B981', '#059669'] as const,
+  streakGradient: ['#F59E0B', '#E85D04'] as const,
+  darkGradient: ['#1F2937', '#111827'] as const,
+} as const;
+
+// Glow shadow presets for highlighted elements
+export const glows = {
+  glowOrange: {
+    shadowColor: '#E85D04', // hearthOrange
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  glowSuccess: {
+    shadowColor: '#10B981', // success
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  glowWarning: {
+    shadowColor: '#F59E0B', // warning
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+} as const;
+
+// Glassmorphism effect presets
+// Note: For blur effect, use expo-blur's BlurView component
+export const glassmorphism = {
+  glassLight: {
+    backgroundColor: 'rgba(255, 255, 255, 0.7)',
+    // Apply blur using: <BlurView intensity={20} tint="light" />
+  },
+  glassDark: {
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    // Apply blur using: <BlurView intensity={20} tint="dark" />
+  },
+} as const;
+
+// Animation timing constants (in milliseconds)
+export const animation = {
+  fast: 150,
+  normal: 300,
+  slow: 500,
+  // Easing functions - use with Animated API or Reanimated
+  easing: {
+    // Placeholder: import { Easing } from 'react-native-reanimated'
+    // or use Animated.Easing from 'react-native'
   },
 } as const;

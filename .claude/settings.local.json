@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git pull:*)",
+      "Bash(ipconfig:*)",
+      "Bash(dir /s /b)",
+      "Bash(dir:*)",
+      "Bash(npx tsc:*)",
+      "Bash(node:*)",
+      "Bash(npx expo:*)"
+    ]
+  }
+}
