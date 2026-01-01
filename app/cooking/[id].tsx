@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useMealPlanStore, useProgressStore } from '../../src/stores';
+import { useMealPlanStore, useProgressStore, useUserStore } from '../../src/stores';
 import { colors, spacing, borderRadius, shadows, glows } from '../../src/lib/theme';
 import { Button, Checkbox, ProgressBar, AnimatedContainer, Celebration } from '../../src/components';
 import { RatingModal } from '../../src/components/modals/RatingModal';
@@ -27,7 +27,8 @@ export default function CookingScreen() {
     endCookingSession,
     activeCookingSession,
   } = useMealPlanStore();
-  const { addXP, updateStreak } = useProgressStore();
+  const { addXP, updateStreak, recordMealCompletion, initializeAchievements } = useProgressStore();
+  const { partner, recordMealCooked } = useUserStore();
 
   // State
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
@@ -212,6 +213,15 @@ export default function CookingScreen() {
     // Update cooking streak
     updateStreak(true);
 
+    // Record meal completion for achievements and stats
+    const isCoupleMeal = !!partner;
+    const cuisine = recipe?.cuisine || 'Other';
+    const moneySaved = todayRecommendation?.estimatedSavings || 0;
+
+    initializeAchievements(); // Ensure achievements exist
+    recordMealCompletion(cuisine, rating, isCoupleMeal);
+    recordMealCooked(cuisine, rating, isCoupleMeal, moneySaved, 0);
+
     endCookingSession();
     setTodayRecommendation(null);
     router.replace('/');
@@ -229,6 +239,15 @@ export default function CookingScreen() {
 
     // Update cooking streak
     updateStreak(true);
+
+    // Record meal completion for achievements and stats (no rating)
+    const isCoupleMeal = !!partner;
+    const cuisine = recipe?.cuisine || 'Other';
+    const moneySaved = todayRecommendation?.estimatedSavings || 0;
+
+    initializeAchievements(); // Ensure achievements exist
+    recordMealCompletion(cuisine, null, isCoupleMeal);
+    recordMealCooked(cuisine, null, isCoupleMeal, moneySaved, 0);
 
     endCookingSession();
     setTodayRecommendation(null);

@@ -54,8 +54,8 @@ function convertRecipeRow(row: RecipeRow): Recipe {
     servings: row.servings,
     difficulty: row.difficulty,
     cuisine: row.cuisine,
-    ingredients: row.ingredients as Recipe['ingredients'],
-    steps: row.steps as Recipe['steps'],
+    ingredients: row.ingredients as unknown as Recipe['ingredients'],
+    steps: row.steps as unknown as Recipe['steps'],
     tags: row.tags,
     estimatedCost: row.estimated_cost,
   };
@@ -136,7 +136,7 @@ function convertProfileRow(row: ProfileRow, email: string = ''): User {
     name: row.name,
     email,
     avatarUrl: row.avatar_url,
-    preferences: (row.preferences as UserPreferences) ?? {
+    preferences: (row.preferences as unknown as UserPreferences) ?? {
       dietaryRestrictions: [],
       dislikedIngredients: [],
       favoriteCuisines: [],
@@ -159,8 +159,8 @@ function convertProgressRow(row: UserProgressRow): UserProgress {
     nextLevelXP: Math.floor(1000 * Math.pow(1.2, row.level - 1)),
     streak: row.streak,
     longestStreak: row.longest_streak,
-    achievements: row.achievements as UserProgress['achievements'],
-    badges: row.badges as UserProgress['badges'],
+    achievements: row.achievements as unknown as UserProgress['achievements'],
+    badges: row.badges as unknown as UserProgress['badges'],
   };
 }
 
@@ -392,7 +392,8 @@ export function useUserProfile(): UseUserProfileReturn {
           profileUpdate.preferences = updates.preferences as unknown as ProfileUpdate['preferences'];
         }
 
-        const { error: updateError } = await supabase
+        // Use type assertion for Supabase compatibility
+        const { error: updateError } = await (supabase as any)
           .from('profiles')
           .update(profileUpdate)
           .eq('id', user.id);
@@ -528,16 +529,18 @@ export function useInventorySync(): UseInventorySyncReturn {
       const queue = await getOfflineQueue();
       const inventoryQueue = queue.filter((item) => item.type === 'inventory');
 
+      // Use type assertion for Supabase compatibility
+      const sb = supabase as any;
       for (const queueItem of inventoryQueue) {
         try {
           if (queueItem.action === 'insert') {
-            await supabase.from('inventory_items').insert(queueItem.data as InventoryItemInsert);
+            await sb.from('inventory_items').insert(queueItem.data as InventoryItemInsert);
           } else if (queueItem.action === 'update') {
             const { id, ...updates } = queueItem.data as InventoryItemInsert & { id: string };
-            await supabase.from('inventory_items').update(updates).eq('id', id);
+            await sb.from('inventory_items').update(updates).eq('id', id);
           } else if (queueItem.action === 'delete') {
             const { id } = queueItem.data as { id: string };
-            await supabase.from('inventory_items').delete().eq('id', id);
+            await sb.from('inventory_items').delete().eq('id', id);
           }
         } catch (err) {
           console.error('Failed to process queue item:', err);
@@ -616,16 +619,18 @@ export function useMealPlanSync(): UseMealPlanSyncReturn {
         const queue = await getOfflineQueue();
         const mealPlanQueue = queue.filter((item) => item.type === 'mealplan');
 
+        // Use type assertion for Supabase compatibility
+        const sb = supabase as any;
         for (const queueItem of mealPlanQueue) {
           try {
             if (queueItem.action === 'insert') {
-              await supabase.from('meal_plans').insert(queueItem.data as MealPlanInsert);
+              await sb.from('meal_plans').insert(queueItem.data as MealPlanInsert);
             } else if (queueItem.action === 'update') {
               const { id, ...updates } = queueItem.data as MealPlanInsert & { id: string };
-              await supabase.from('meal_plans').update(updates).eq('id', id);
+              await sb.from('meal_plans').update(updates).eq('id', id);
             } else if (queueItem.action === 'delete') {
               const { id } = queueItem.data as { id: string };
-              await supabase.from('meal_plans').delete().eq('id', id);
+              await sb.from('meal_plans').delete().eq('id', id);
             }
           } catch (err) {
             console.error('Failed to process meal plan queue item:', err);
@@ -643,7 +648,7 @@ export function useMealPlanSync(): UseMealPlanSyncReturn {
         for (const plan of localCompletedPlans) {
           try {
             const planRow = convertMealPlanToRow(plan, authUser.id);
-            await supabase.from('meal_plans').upsert(planRow, { onConflict: 'id' });
+            await sb.from('meal_plans').upsert(planRow, { onConflict: 'id' });
           } catch (err) {
             console.error('Failed to sync completed meal plan:', err);
           }

@@ -12,7 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
-import { useUserStore } from '../src/stores';
+import { useUserStore, useProgressStore } from '../src/stores';
 import { colors, spacing, borderRadius, shadows } from '../src/lib/theme';
 import { AnimatedContainer } from '../src/components';
 import type { UserPreferences } from '../src/types';
@@ -57,7 +57,8 @@ const TIME_OPTIONS = [
 
 export default function SettingsScreen() {
   const router = useRouter();
-  const { user, updatePreferences, logout } = useUserStore();
+  const { user, partner, updatePreferences, logout } = useUserStore();
+  const { cookingStats } = useProgressStore();
 
   // Get current preferences with defaults
   const preferences = user?.preferences ?? {
@@ -201,8 +202,49 @@ export default function SettingsScreen() {
           </View>
         </AnimatedContainer>
 
-        {/* Dietary Restrictions Section */}
+        {/* Partner Section */}
         <AnimatedContainer animation="fadeSlideUp" delay={50}>
+          <Text style={styles.sectionTitle}>Cooking Partner</Text>
+          <View style={styles.card}>
+            {partner ? (
+              <View style={styles.partnerConnected}>
+                <View style={styles.partnerAvatar}>
+                  <Text style={styles.partnerInitial}>
+                    {partner.name.charAt(0).toUpperCase()}
+                  </Text>
+                </View>
+                <View style={styles.partnerInfo}>
+                  <Text style={styles.partnerName}>{partner.name}</Text>
+                  <Text style={styles.partnerStats}>
+                    {cookingStats.coupleMeals} meals cooked together
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.partnerEditButton}
+                  onPress={() => router.push('/partner')}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="settings-outline" size={20} color={colors.gray500} />
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={styles.actionRow}
+                onPress={() => router.push('/partner')}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="people-outline" size={20} color={colors.sageGreen} />
+                <Text style={[styles.actionLabel, { color: colors.sageGreen }]}>
+                  Connect with a partner
+                </Text>
+                <Ionicons name="chevron-forward" size={20} color={colors.gray400} />
+              </TouchableOpacity>
+            )}
+          </View>
+        </AnimatedContainer>
+
+        {/* Dietary Restrictions Section */}
+        <AnimatedContainer animation="fadeSlideUp" delay={100}>
           <Text style={styles.sectionTitle}>Dietary Restrictions</Text>
           <View style={styles.card}>
             <Text style={styles.cardDescription}>
@@ -236,7 +278,7 @@ export default function SettingsScreen() {
         </AnimatedContainer>
 
         {/* Favorite Cuisines Section */}
-        <AnimatedContainer animation="fadeSlideUp" delay={100}>
+        <AnimatedContainer animation="fadeSlideUp" delay={150}>
           <Text style={styles.sectionTitle}>Favorite Cuisines</Text>
           <View style={styles.card}>
             <Text style={styles.cardDescription}>
@@ -270,7 +312,7 @@ export default function SettingsScreen() {
         </AnimatedContainer>
 
         {/* Cooking Skill Level Section */}
-        <AnimatedContainer animation="fadeSlideUp" delay={150}>
+        <AnimatedContainer animation="fadeSlideUp" delay={200}>
           <Text style={styles.sectionTitle}>Cooking Skill Level</Text>
           <View style={styles.card}>
             <Text style={styles.cardDescription}>
@@ -309,7 +351,7 @@ export default function SettingsScreen() {
         </AnimatedContainer>
 
         {/* Time Preferences Section */}
-        <AnimatedContainer animation="fadeSlideUp" delay={200}>
+        <AnimatedContainer animation="fadeSlideUp" delay={250}>
           <Text style={styles.sectionTitle}>Time Preferences</Text>
           <View style={styles.card}>
             <Text style={styles.cardDescription}>
@@ -373,7 +415,7 @@ export default function SettingsScreen() {
         </AnimatedContainer>
 
         {/* Data Management Section */}
-        <AnimatedContainer animation="fadeSlideUp" delay={250}>
+        <AnimatedContainer animation="fadeSlideUp" delay={300}>
           <Text style={styles.sectionTitle}>Data Management</Text>
           <View style={styles.card}>
             <TouchableOpacity
@@ -401,7 +443,7 @@ export default function SettingsScreen() {
         </AnimatedContainer>
 
         {/* About Section */}
-        <AnimatedContainer animation="fadeSlideUp" delay={300}>
+        <AnimatedContainer animation="fadeSlideUp" delay={350}>
           <Text style={styles.sectionTitle}>About</Text>
           <View style={styles.card}>
             <View style={styles.aboutRow}>
@@ -640,5 +682,39 @@ const styles = StyleSheet.create({
   },
   bottomSpacer: {
     height: spacing.xxxl,
+  },
+  partnerConnected: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  partnerAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.sageGreen,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  partnerInitial: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: colors.white,
+  },
+  partnerInfo: {
+    flex: 1,
+    marginLeft: spacing.md,
+  },
+  partnerName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.charcoal,
+  },
+  partnerStats: {
+    fontSize: 13,
+    color: colors.gray500,
+    marginTop: spacing.xs,
+  },
+  partnerEditButton: {
+    padding: spacing.sm,
   },
 });

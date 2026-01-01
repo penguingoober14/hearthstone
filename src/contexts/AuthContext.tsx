@@ -115,13 +115,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
           return;
         }
 
-        // Map profile to User type
+        // Map profile to User type (using 'as any' for Supabase row type compatibility)
+        const profileData = profile as any;
         const appUser: User = {
-          id: profile.id,
-          name: profile.name || authUser.email?.split('@')[0] || 'User',
+          id: profileData.id,
+          name: profileData.name || authUser.email?.split('@')[0] || 'User',
           email: authUser.email || '',
-          avatarUrl: profile.avatar_url,
-          preferences: (profile.preferences as UserPreferences) || {
+          avatarUrl: profileData.avatar_url,
+          preferences: (profileData.preferences as unknown as UserPreferences) || {
             dietaryRestrictions: [],
             dislikedIngredients: [],
             favoriteCuisines: [],
@@ -130,7 +131,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
             weekendMaxTime: 90,
             chefMode: false,
           },
-          partnerId: profile.partner_id,
+          partnerId: profileData.partner_id,
         };
 
         setLocalUser(appUser);
@@ -347,15 +348,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
             .eq('id', user.id)
             .single();
 
-          const currentPreferences = (currentProfile?.preferences as UserPreferences) || {};
+          const currentPreferences = (currentProfile?.preferences as unknown as UserPreferences) || {};
           updateData.preferences = {
             ...currentPreferences,
             ...data.preferences,
           };
         }
 
-        // Update the profile in Supabase
-        const { error } = await supabase
+        // Update the profile in Supabase (use type assertion for Supabase compatibility)
+        const { error } = await (supabase as any)
           .from('profiles')
           .update(updateData)
           .eq('id', user.id);
@@ -411,7 +412,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
         badges: [],
       };
 
-      const { error } = await supabase
+      // Use type assertion for Supabase type compatibility
+      const { error } = await (supabase as any)
         .from('user_progress')
         .insert(initialProgress);
 

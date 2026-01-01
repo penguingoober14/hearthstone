@@ -33,6 +33,9 @@ interface UserState {
   completeOnboarding: (name: string, preferences: Partial<UserPreferences>) => void;
   logout: () => void;
 
+  // Meal completion stats tracking
+  recordMealCooked: (cuisine: string, rating: number | null, isCoupleMeal: boolean, moneySaved?: number, itemsSaved?: number) => void;
+
   // Supabase sync actions
   syncToSupabase: () => Promise<void>;
   loadFromSupabase: (userId: string) => Promise<void>;
@@ -192,6 +195,42 @@ export const useUserStore = create<UserState>()(
           weeklyStats: defaultWeeklyStats,
           syncQueue: [],
           lastSyncedAt: null,
+        });
+      },
+
+      recordMealCooked: (cuisine, rating, isCoupleMeal, moneySaved = 0, itemsSaved = 0) => {
+        set((state) => {
+          // Update monthly stats
+          const newMonthlyStats = { ...state.monthlyStats };
+          newMonthlyStats.mealsCooked += 1;
+          newMonthlyStats.totalMeals += 1;
+          newMonthlyStats.moneySaved += moneySaved;
+          newMonthlyStats.itemsSavedFromExpiry += itemsSaved;
+
+          // Track cuisines explored
+          if (!newMonthlyStats.cuisinesExplored.includes(cuisine)) {
+            newMonthlyStats.cuisinesExplored = [...newMonthlyStats.cuisinesExplored, cuisine];
+          }
+
+          // Track couple meals
+          if (isCoupleMeal) {
+            newMonthlyStats.couplesMeals += 1;
+          }
+
+          // Update average rating
+          if (rating !== null) {
+            const previousTotal = newMonthlyStats.averageRating * (newMonthlyStats.totalMeals - 1);
+            newMonthlyStats.averageRating = (previousTotal + rating) / newMonthlyStats.totalMeals;
+          }
+
+          // Update weekly stats
+          const newWeeklyStats = { ...state.weeklyStats };
+          newWeeklyStats.mealsCooked += 1;
+
+          return {
+            monthlyStats: newMonthlyStats,
+            weeklyStats: newWeeklyStats,
+          };
         });
       },
 

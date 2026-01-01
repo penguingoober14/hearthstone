@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 import { createDateAwareStorage } from '../lib/storage';
 import { generateId } from '../lib/uuid';
 import { supabase } from '../lib/supabase';
+import { ACHIEVEMENT_DEFINITIONS, initializeAchievements, getAchievementDefinition } from '../data/achievements';
 import type { UserProgress, Achievement, Badge, Challenge } from '../types';
 import type { UserProgressRow, UserProgressInsert, UserProgressUpdate } from '../types/database';
 
@@ -89,13 +90,24 @@ interface SyncQueueItem {
   timestamp: number;
 }
 
+// Stats tracking for achievement conditions
+interface CookingStats {
+  totalMealsCooked: number;
+  cuisinesExplored: string[];
+  fiveStarMeals: number;
+  coupleMeals: number;
+}
+
 interface ProgressState {
   progress: UserProgress;
   activeChallenges: Challenge[];
+  cookingStats: CookingStats;
   isLoading: boolean;
   challengesInitialized: boolean;
+  achievementsInitialized: boolean;
   syncQueue: SyncQueueItem[];
   lastSyncedAt: string | null;
+  pendingUnlocks: Achievement[]; // Achievements to show unlock animation for
 
   // Actions
   addXP: (amount: number) => void;
@@ -105,7 +117,16 @@ interface ProgressState {
   addChallenge: (challenge: Challenge) => void;
   removeChallenge: (challengeId: string) => void;
   initializeChallenges: (skillLevel: 'beginner' | 'intermediate' | 'advanced') => void;
+  initializeAchievements: () => void;
   resetProgress: () => void;
+
+  // Meal completion tracking
+  recordMealCompletion: (cuisine: string, rating: number | null, isCoupleMeal: boolean) => Achievement[];
+  updateAchievementProgress: (achievementId: string, progressDelta: number) => Achievement | null;
+  clearPendingUnlocks: () => void;
+
+  // Partner tracking
+  recordPartnerConnected: () => Achievement | null;
 
   // Supabase sync actions
   syncToSupabase: () => Promise<void>;
@@ -196,15 +217,25 @@ const mergeProgress = (local: UserProgress, remote: UserProgress): UserProgress 
   };
 };
 
+const initialCookingStats: CookingStats = {
+  totalMealsCooked: 0,
+  cuisinesExplored: [],
+  fiveStarMeals: 0,
+  coupleMeals: 0,
+};
+
 export const useProgressStore = create<ProgressState>()(
   persist(
     (set, get) => ({
       progress: initialProgress,
       activeChallenges: [],
+      cookingStats: initialCookingStats,
       isLoading: false,
       challengesInitialized: false,
+      achievementsInitialized: false,
       syncQueue: [],
       lastSyncedAt: null,
+      pendingUnlocks: [],
 
       addXP: (amount) => {
         set((state) => {
@@ -333,13 +364,152 @@ export const useProgressStore = create<ProgressState>()(
         });
       },
 
+      initializeAchievements: () => {
+        const state = get();
+        // Only initialize once or if empty
+        if (state.achievementsInitialized && state.progress.achievements.length > 0) return;
+
+        const achievements = initializeAchievements();
+        set((s) => ({
+          progress: {
+            ...s.progress,
+            achievements,
+          },
+          achievementsInitialized: true,
+        }));
+      },
+
+      updateAchievementProgress: (achievementId, progressDelta) => {
+        const state = get();
+        const achievement = state.progress.achievements.find((a) => a.id === achievementId);
+
+        if (!achievement || achievement.unlockedAt) {
+          return null; // Already unlocked or doesn't exist
+        }
+
+        const newProgress = Math.min(achievement.progress + progressDelta, achievement.target);
+        const justUnlocked = newProgress >= achievement.target;
+
+        const updatedAchievement: Achievement = {
+          ...achievement,
+          progress: newProgress,
+          unlockedAt: justUnlocked ? new Date() : null,
+        };
+
+        set((s) => ({
+          progress: {
+            ...s.progress,
+            achievements: s.progress.achievements.map((a) =>
+              a.id === achievementId ? updatedAchievement : a
+            ),
+          },
+          pendingUnlocks: justUnlocked
+            ? [...s.pendingUnlocks, updatedAchievement]
+            : s.pendingUnlocks,
+        }));
+
+        return justUnlocked ? updatedAchievement : null;
+      },
+
+      clearPendingUnlocks: () => {
+        set({ pendingUnlocks: [] });
+      },
+
+      recordMealCompletion: (cuisine, rating, isCoupleMeal) => {
+        const state = get();
+        const unlockedAchievements: Achievement[] = [];
+
+        // Update cooking stats
+        const newStats = { ...state.cookingStats };
+        newStats.totalMealsCooked += 1;
+
+        if (!newStats.cuisinesExplored.includes(cuisine)) {
+          newStats.cuisinesExplored = [...newStats.cuisinesExplored, cuisine];
+        }
+
+        if (rating === 5) {
+          newStats.fiveStarMeals += 1;
+        }
+
+        if (isCoupleMeal) {
+          newStats.coupleMeals += 1;
+        }
+
+        set({ cookingStats: newStats });
+
+        // Check cooking achievements
+        const cookingAchievements = ['first_meal', 'home_cook', 'seasoned_chef', 'master_chef'];
+        for (const id of cookingAchievements) {
+          const unlocked = get().updateAchievementProgress(id, 1);
+          if (unlocked) unlockedAchievements.push(unlocked);
+        }
+
+        // Check exploration achievements
+        const explorationAchievements = ['cuisine_curious', 'world_traveler', 'culinary_explorer'];
+        const cuisineCount = newStats.cuisinesExplored.length;
+        for (const id of explorationAchievements) {
+          const achievement = state.progress.achievements.find((a) => a.id === id);
+          if (achievement && !achievement.unlockedAt && cuisineCount >= achievement.target) {
+            const unlocked = get().updateAchievementProgress(id, cuisineCount - achievement.progress);
+            if (unlocked) unlockedAchievements.push(unlocked);
+          }
+        }
+
+        // Check 5-star achievements
+        if (rating === 5) {
+          let unlocked = get().updateAchievementProgress('five_star_meal', 1);
+          if (unlocked) unlockedAchievements.push(unlocked);
+          unlocked = get().updateAchievementProgress('perfectionist', 1);
+          if (unlocked) unlockedAchievements.push(unlocked);
+        }
+
+        // Check couple achievements
+        if (isCoupleMeal) {
+          let unlocked = get().updateAchievementProgress('couple_cooking', 1);
+          if (unlocked) unlockedAchievements.push(unlocked);
+          unlocked = get().updateAchievementProgress('kitchen_duo', 1);
+          if (unlocked) unlockedAchievements.push(unlocked);
+        }
+
+        // Check streak achievements
+        const streak = get().progress.streak;
+        const streakAchievements = ['consistent_cook', 'week_warrior', 'streak_master'];
+        for (const id of streakAchievements) {
+          const achievement = state.progress.achievements.find((a) => a.id === id);
+          if (achievement && !achievement.unlockedAt && streak >= achievement.target) {
+            const unlocked = get().updateAchievementProgress(id, streak - achievement.progress);
+            if (unlocked) unlockedAchievements.push(unlocked);
+          }
+        }
+
+        // Check level achievements
+        const level = get().progress.level;
+        if (level >= 10) {
+          const unlocked = get().updateAchievementProgress('level_10', level);
+          if (unlocked) unlockedAchievements.push(unlocked);
+        }
+        if (level >= 25) {
+          const unlocked = get().updateAchievementProgress('level_25', level);
+          if (unlocked) unlockedAchievements.push(unlocked);
+        }
+
+        return unlockedAchievements;
+      },
+
+      recordPartnerConnected: () => {
+        return get().updateAchievementProgress('partner_up', 1);
+      },
+
       resetProgress: () => {
         set({
           progress: initialProgress,
           activeChallenges: [],
+          cookingStats: initialCookingStats,
           challengesInitialized: false,
+          achievementsInitialized: false,
           syncQueue: [],
           lastSyncedAt: null,
+          pendingUnlocks: [],
         });
       },
 

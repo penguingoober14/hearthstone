@@ -61,6 +61,8 @@ function RootLayoutNav() {
           gestureEnabled: false,
         }}
       />
+      <Stack.Screen name="partner" />
+      <Stack.Screen name="settings" />
     </Stack>
   );
 }

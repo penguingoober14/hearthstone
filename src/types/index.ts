@@ -113,6 +113,7 @@ export interface Achievement {
   name: string;
   description: string;
   emoji: string;
+  tier: 'bronze' | 'silver' | 'gold' | 'platinum';
   unlockedAt: Date | null;
   progress: number;
   target: number;

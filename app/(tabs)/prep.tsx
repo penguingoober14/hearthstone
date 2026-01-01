@@ -1,29 +1,9 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useEffect, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useMealPlanStore } from '../../src/stores';
+import { useMealPlanStore, usePrepStore } from '../../src/stores';
 import { colors, spacing, borderRadius, shadows } from '../../src/lib/theme';
-import { containers, cards, layout } from '../../src/lib/globalStyles';
-import { Typography, BadgePill, Checkbox } from '../../src/components';
-
-const PREP_TASKS_KEY = 'hearthstone-prep-tasks';
-
-interface PrepTask {
-  id: string;
-  task: string;
-  time: number;
-  usedIn: string;
-  completed: boolean;
-}
-
-// Default tasks when no meals are planned (for demo purposes)
-const defaultPrepTasks: PrepTask[] = [
-  { id: '1', task: 'Dice onions (3)', time: 8, usedIn: 'Mon, Tue, Wed', completed: false },
-  { id: '2', task: 'Cook rice batch', time: 20, usedIn: 'Mon, Thu', completed: false },
-  { id: '3', task: 'Wash & chop veg', time: 12, usedIn: 'Mon, Wed', completed: false },
-  { id: '4', task: 'Marinate chicken', time: 5, usedIn: 'Mon', completed: false },
-];
+import { BadgePill, Checkbox } from '../../src/components';
 
 function getStartOfWeek(date: Date): Date {
   const d = new Date(date);
@@ -40,10 +20,8 @@ function getDayAbbreviation(date: Date): string {
 }
 
 export default function PrepScreen() {
-  const [tasks, setTasks] = useState<PrepTask[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  const { getPlansForWeek } = useMealPlanStore();
+  const { getPlansForWeek, plans } = useMealPlanStore();
+  const { tasks, toggleTask, generateTasksFromPlans, getTotalRemainingTime } = usePrepStore();
 
   const startOfWeek = useMemo(() => getStartOfWeek(new Date()), []);
   const weekPlans = useMemo(() => getPlansForWeek(startOfWeek), [startOfWeek, getPlansForWeek]);
@@ -72,48 +50,18 @@ export default function PrepScreen() {
       .map(day => ({ day, meal: plansByDay[day] }));
   }, [weekPlans]);
 
-  // Load tasks from AsyncStorage on mount
+  // Auto-generate prep tasks when plans change
   useEffect(() => {
-    const loadTasks = async () => {
-      try {
-        const stored = await AsyncStorage.getItem(PREP_TASKS_KEY);
-        if (stored) {
-          setTasks(JSON.parse(stored));
-        } else {
-          // Use default tasks if none stored
-          setTasks(defaultPrepTasks);
-        }
-      } catch (error) {
-        console.error('Failed to load prep tasks:', error);
-        setTasks(defaultPrepTasks);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadTasks();
-  }, []);
-
-  // Save tasks to AsyncStorage whenever they change
-  useEffect(() => {
-    if (!isLoading && tasks.length > 0) {
-      AsyncStorage.setItem(PREP_TASKS_KEY, JSON.stringify(tasks)).catch((error) =>
-        console.error('Failed to save prep tasks:', error)
-      );
+    if (plans.length > 0) {
+      generateTasksFromPlans(plans);
     }
-  }, [tasks, isLoading]);
+  }, [plans, generateTasksFromPlans]);
 
-  const toggleTask = useCallback((taskId: string) => {
-    setTasks((prevTasks) =>
-      prevTasks.map((task) =>
-        task.id === taskId ? { ...task, completed: !task.completed } : task
-      )
-    );
-  }, []);
+  const handleToggleTask = useCallback((taskId: string) => {
+    toggleTask(taskId);
+  }, [toggleTask]);
 
-  const totalPrepTime = useMemo(() => {
-    return tasks.filter((task) => !task.completed).reduce((sum, task) => sum + task.time, 0);
-  }, [tasks]);
+  const totalPrepTime = getTotalRemainingTime();
 
   const handleStartGuidedPrep = useCallback(() => {
     const uncompletedTasks = tasks.filter((task) => !task.completed);
@@ -123,7 +71,7 @@ export default function PrepScreen() {
       return;
     }
 
-    const taskList = uncompletedTasks.map((task) => `- ${task.task}`).join('\n');
+    const taskList = uncompletedTasks.map((task) => `- ${task.emoji} ${task.task}`).join('\n');
     Alert.alert(
       'Starting Guided Prep',
       `Starting prep for:\n\n${taskList}\n\nTotal time: ~${totalPrepTime} minutes`
@@ -132,15 +80,6 @@ export default function PrepScreen() {
 
   const hasWeekPlan = weekPlan.length > 0;
   const hasTasks = tasks.length > 0;
-
-  if (isLoading) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <Text style={styles.title}>Sunday Prep</Text>
-        <Text style={styles.subtitle}>Loading...</Text>
-      </SafeAreaView>
-    );
-  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -184,14 +123,14 @@ export default function PrepScreen() {
               <View key={task.id} style={styles.taskRow}>
                 <Checkbox
                   checked={task.completed}
-                  onChange={() => toggleTask(task.id)}
+                  onChange={() => handleToggleTask(task.id)}
                 />
                 <View style={styles.taskContent}>
                   <View style={styles.taskHeader}>
                     <Text
                       style={[styles.taskName, task.completed && styles.taskNameCompleted]}
                     >
-                      {task.task}
+                      {task.emoji} {task.task}
                     </Text>
                     <BadgePill
                       label={`${task.time}min`}
@@ -206,10 +145,10 @@ export default function PrepScreen() {
                       Used in:
                     </Text>
                     <View style={styles.usedInBadges}>
-                      {task.usedIn.split(', ').map((day, idx) => (
+                      {task.usedIn.map((day, idx) => (
                         <BadgePill
                           key={idx}
-                          label={day.trim()}
+                          label={day}
                           variant="muted"
                           size="sm"
                           style={task.completed ? styles.badgeCompleted : undefined}
