@@ -148,11 +148,11 @@ export const useInventoryStore = create<InventoryState>()(
                     .delete()
                     .eq('id', queueItem.itemId);
                 } else if (queueItem.type === 'add' && queueItem.data) {
-                  await supabase
+                  await (supabase as any)
                     .from('inventory_items')
                     .upsert(queueItem.data);
                 } else if (queueItem.type === 'update' && queueItem.data) {
-                  await supabase
+                  await (supabase as any)
                     .from('inventory_items')
                     .update(queueItem.data)
                     .eq('id', queueItem.itemId);
@@ -183,11 +183,11 @@ export const useInventoryStore = create<InventoryState>()(
             throw deleteError;
           }
 
-          // Insert all current items
+          // Insert all current items (use type assertion for Supabase compatibility)
           if (items.length > 0) {
             const rows = items.map((item) => itemToRow(item, user.id));
 
-            const { error: insertError } = await supabase
+            const { error: insertError } = await (supabase as any)
               .from('inventory_items')
               .insert(rows);
 

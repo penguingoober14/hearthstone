@@ -244,11 +244,11 @@ export const useUserStore = create<UserState>()(
         set({ isLoading: true });
 
         try {
-          // First, process any queued sync items
+          // First, process any queued sync items (use type assertion for Supabase compatibility)
           if (syncQueue.length > 0) {
             console.log(`[userStore] Processing ${syncQueue.length} queued sync items`);
             for (const item of syncQueue) {
-              const { error } = await supabase
+              const { error } = await (supabase as any)
                 .from('profiles')
                 .update(item.data)
                 .eq('id', user.id);
@@ -261,10 +261,10 @@ export const useUserStore = create<UserState>()(
             }
           }
 
-          // Now sync current state
+          // Now sync current state (use type assertion for Supabase compatibility)
           const profileData = userToProfileUpdate(user);
 
-          const { error } = await supabase
+          const { error } = await (supabase as any)
             .from('profiles')
             .upsert({
               id: user.id,
@@ -316,11 +316,14 @@ export const useUserStore = create<UserState>()(
         set({ isLoading: true });
 
         try {
-          const { data, error } = await supabase
+          // Use type assertion for Supabase compatibility
+          const { data: dataRaw, error } = await (supabase as any)
             .from('profiles')
             .select('*')
             .eq('id', userId)
             .single();
+
+          const data = dataRaw as ProfileRow | null;
 
           if (error) {
             console.error('[userStore] Error loading from Supabase:', error.message);
@@ -359,11 +362,13 @@ export const useUserStore = create<UserState>()(
 
           // Load partner if exists
           if (data.partner_id) {
-            const { data: partnerData, error: partnerError } = await supabase
+            const { data: partnerDataRaw, error: partnerError } = await (supabase as any)
               .from('profiles')
               .select('*')
               .eq('id', data.partner_id)
               .single();
+
+            const partnerData = partnerDataRaw as ProfileRow | null;
 
             if (!partnerError && partnerData) {
               set({ partner: profileRowToUser(partnerData) });

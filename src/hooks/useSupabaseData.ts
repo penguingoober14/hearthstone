@@ -732,7 +732,8 @@ export function useProgressSync(): UseProgressSyncReturn {
         try {
           if (queueItem.action === 'update') {
             const updates = queueItem.data as UserProgressUpdate;
-            await supabase
+            // Use type assertion for Supabase compatibility
+            await (supabase as any)
               .from('user_progress')
               .update(updates)
               .eq('user_id', authUser.id);
@@ -791,14 +792,15 @@ export function useProgressSync(): UseProgressSyncReturn {
             badges: progress.badges as unknown as UserProgressUpdate['badges'],
           };
 
-          await supabase
+          // Use type assertion for Supabase compatibility
+          await (supabase as any)
             .from('user_progress')
             .update(progressUpdate)
             .eq('user_id', authUser.id);
         }
       } else {
-        // No server record, create one with local progress
-        const { error: insertError } = await supabase.from('user_progress').insert({
+        // No server record, create one with local progress (use type assertion for Supabase compatibility)
+        const { error: insertError } = await (supabase as any).from('user_progress').insert({
           user_id: authUser.id,
           level: progress.level,
           current_xp: progress.currentXP,
@@ -909,7 +911,8 @@ export function usePushInventoryItem() {
       }
 
       const itemRow = convertInventoryToRow(item, authUser.id);
-      const { error } = await supabase.from('inventory_items').upsert(itemRow, { onConflict: 'id' });
+      // Use type assertion for Supabase compatibility
+      const { error } = await (supabase as any).from('inventory_items').upsert(itemRow, { onConflict: 'id' });
 
       if (error) {
         throw error;
@@ -944,7 +947,8 @@ export function usePushMealPlan() {
       }
 
       const planRow = convertMealPlanToRow(plan, authUser.id);
-      const { error } = await supabase.from('meal_plans').upsert(planRow, { onConflict: 'id' });
+      // Use type assertion for Supabase compatibility
+      const { error } = await (supabase as any).from('meal_plans').upsert(planRow, { onConflict: 'id' });
 
       if (error) {
         throw error;

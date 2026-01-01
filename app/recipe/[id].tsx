@@ -86,7 +86,7 @@ export default function RecipeDetailScreen() {
   };
 
   const handleStartCooking = () => {
-    router.push(`/cooking/${recipe.id}`);
+    router.push(`/cooking/${recipe.id}` as any);
   };
 
   const totalTime = recipe.prepTime + recipe.cookTime;

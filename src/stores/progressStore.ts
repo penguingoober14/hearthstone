@@ -531,7 +531,8 @@ export const useProgressStore = create<ProgressState>()(
             console.log(`[progressStore] Processing ${syncQueue.length} queued operations`);
             for (const queueItem of syncQueue) {
               try {
-                await supabase
+                // Use type assertion for Supabase compatibility
+                await (supabase as any)
                   .from('user_progress')
                   .update(queueItem.data)
                   .eq('user_id', user.id);
@@ -541,10 +542,10 @@ export const useProgressStore = create<ProgressState>()(
             }
           }
 
-          // Upsert current progress
+          // Upsert current progress (use type assertion for Supabase compatibility)
           const progressData = progressToRow(progress, user.id);
 
-          const { error } = await supabase
+          const { error } = await (supabase as any)
             .from('user_progress')
             .upsert(progressData);
 

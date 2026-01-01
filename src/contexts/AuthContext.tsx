@@ -341,13 +341,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
 
         if (data.preferences !== undefined) {
-          // Fetch current preferences to merge with new ones
-          const { data: currentProfile } = await supabase
+          // Fetch current preferences to merge with new ones (use type assertion for Supabase compatibility)
+          const { data: currentProfileData } = await (supabase as any)
             .from('profiles')
             .select('preferences')
             .eq('id', user.id)
             .single();
 
+          const currentProfile = currentProfileData as { preferences: unknown } | null;
           const currentPreferences = (currentProfile?.preferences as unknown as UserPreferences) || {};
           updateData.preferences = {
             ...currentPreferences,

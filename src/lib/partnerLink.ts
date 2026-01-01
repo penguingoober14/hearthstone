@@ -83,15 +83,15 @@ export async function acceptPartnerInvite(code: string): Promise<{ partnerId: st
       return { partnerId: null, partnerName: null, error: new Error('You cannot partner with yourself') };
     }
 
-    // Get partner's name
-    const { data: partnerProfile } = await supabase
+    // Get partner's name (use type assertion for Supabase compatibility)
+    const { data: partnerProfile } = await (supabase as any)
       .from('profiles')
       .select('name')
       .eq('id', invite.user_id)
       .single();
 
     // Link the two users as partners (update both profiles)
-    const { error: linkError1 } = await supabase
+    const { error: linkError1 } = await (supabase as any)
       .from('profiles')
       .update({ partner_id: invite.user_id })
       .eq('id', user.id);
@@ -100,29 +100,29 @@ export async function acceptPartnerInvite(code: string): Promise<{ partnerId: st
       return { partnerId: null, partnerName: null, error: new Error(linkError1.message) };
     }
 
-    const { error: linkError2 } = await supabase
+    const { error: linkError2 } = await (supabase as any)
       .from('profiles')
       .update({ partner_id: user.id })
       .eq('id', invite.user_id);
 
     if (linkError2) {
       // Rollback the first link
-      await supabase
+      await (supabase as any)
         .from('profiles')
         .update({ partner_id: null })
         .eq('id', user.id);
       return { partnerId: null, partnerName: null, error: new Error(linkError2.message) };
     }
 
-    // Mark invite as used
-    await supabase
+    // Mark invite as used (use type assertion for Supabase compatibility)
+    await (supabase as any)
       .from('partner_invites')
       .update({ used: true })
       .eq('code', code.toUpperCase());
 
     return {
       partnerId: invite.user_id,
-      partnerName: partnerProfile?.name || 'Partner',
+      partnerName: (partnerProfile as any)?.name || 'Partner',
       error: null,
     };
   } catch (err) {
@@ -139,19 +139,21 @@ export async function unlinkPartner(): Promise<{ error: Error | null }> {
       return { error: new Error('Not authenticated') };
     }
 
-    // Get current partner ID
-    const { data: profile } = await supabase
+    // Get current partner ID (use type assertion for Supabase compatibility)
+    const { data: profileData } = await (supabase as any)
       .from('profiles')
       .select('partner_id')
       .eq('id', user.id)
       .single();
+
+    const profile = profileData as { partner_id: string | null } | null;
 
     if (!profile?.partner_id) {
       return { error: new Error('No partner linked') };
     }
 
     // Remove partner link from both users
-    const { error: unlinkError1 } = await supabase
+    const { error: unlinkError1 } = await (supabase as any)
       .from('profiles')
       .update({ partner_id: null })
       .eq('id', user.id);
@@ -160,7 +162,7 @@ export async function unlinkPartner(): Promise<{ error: Error | null }> {
       return { error: new Error(unlinkError1.message) };
     }
 
-    const { error: unlinkError2 } = await supabase
+    const { error: unlinkError2 } = await (supabase as any)
       .from('profiles')
       .update({ partner_id: null })
       .eq('id', profile.partner_id);
@@ -185,13 +187,16 @@ export async function getActiveInviteCode(): Promise<{ code: string | null; erro
       return { code: null, error: new Error('Not authenticated') };
     }
 
-    const { data: invite, error } = await supabase
+    // Use type assertion for Supabase compatibility
+    const { data: inviteData, error } = await (supabase as any)
       .from('partner_invites')
       .select('code, expires_at, used')
       .eq('user_id', user.id)
       .eq('used', false)
       .gt('expires_at', new Date().toISOString())
       .single();
+
+    const invite = inviteData as { code: string; expires_at: string; used: boolean } | null;
 
     if (error || !invite) {
       return { code: null, error: null }; // No active invite

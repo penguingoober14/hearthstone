@@ -4,7 +4,7 @@ import { createDateAwareStorage } from '../lib/storage';
 import { generateId } from '../lib/uuid';
 import { supabase } from '../lib/supabase';
 import type { MealPlan, Recipe, MealRecommendation } from '../types';
-import type { MealPlanRow, MealPlanInsert } from '../types/database';
+import type { MealPlanRow, MealPlanInsert, RecipeRow } from '../types/database';
 
 interface CookingSession {
   planId: string;
@@ -198,11 +198,11 @@ export const useMealPlanStore = create<MealPlanState>()(
                     .delete()
                     .eq('id', queueItem.planId);
                 } else if (queueItem.type === 'add' && queueItem.data) {
-                  await supabase
+                  await (supabase as any)
                     .from('meal_plans')
                     .upsert(queueItem.data);
                 } else if (queueItem.type === 'update' && queueItem.data) {
-                  await supabase
+                  await (supabase as any)
                     .from('meal_plans')
                     .update(queueItem.data)
                     .eq('id', queueItem.planId);
@@ -232,11 +232,11 @@ export const useMealPlanStore = create<MealPlanState>()(
             throw deleteError;
           }
 
-          // Insert all current plans
+          // Insert all current plans (use type assertion for Supabase compatibility)
           if (plans.length > 0) {
             const rows = plans.map((plan) => planToRow(plan, user.id));
 
-            const { error: insertError } = await supabase
+            const { error: insertError } = await (supabase as any)
               .from('meal_plans')
               .insert(rows);
 
@@ -280,12 +280,14 @@ export const useMealPlanStore = create<MealPlanState>()(
         set({ isLoading: true, error: null });
 
         try {
-          // Fetch meal plans with their associated recipes
-          const { data: planData, error: planError } = await supabase
+          // Fetch meal plans with their associated recipes (use type assertion for Supabase compatibility)
+          const { data: planDataRaw, error: planError } = await (supabase as any)
             .from('meal_plans')
             .select('*')
             .eq('user_id', userId)
             .order('date', { ascending: true });
+
+          const planData = planDataRaw as MealPlanRow[] | null;
 
           if (planError) {
             console.error('[mealPlanStore] Error loading plans from Supabase:', planError.message);
@@ -302,13 +304,15 @@ export const useMealPlanStore = create<MealPlanState>()(
           // Get unique recipe IDs to fetch
           const recipeIds = [...new Set(planData.filter((p) => p.recipe_id).map((p) => p.recipe_id!))];
 
-          // Fetch recipes if there are any
+          // Fetch recipes if there are any (use type assertion for Supabase compatibility)
           let recipesMap: Map<string, Recipe> = new Map();
           if (recipeIds.length > 0) {
-            const { data: recipeData, error: recipeError } = await supabase
+            const { data: recipeDataRaw, error: recipeError } = await (supabase as any)
               .from('recipes')
               .select('*')
               .in('id', recipeIds);
+
+            const recipeData = recipeDataRaw as RecipeRow[] | null;
 
             if (recipeError) {
               console.error('[mealPlanStore] Error loading recipes:', recipeError.message);
@@ -323,10 +327,10 @@ export const useMealPlanStore = create<MealPlanState>()(
                   prepTime: row.prep_time,
                   cookTime: row.cook_time,
                   servings: row.servings,
-                  difficulty: row.difficulty,
+                  difficulty: row.difficulty as Recipe['difficulty'],
                   cuisine: row.cuisine,
-                  ingredients: row.ingredients as Recipe['ingredients'],
-                  steps: row.steps as Recipe['steps'],
+                  ingredients: row.ingredients as unknown as Recipe['ingredients'],
+                  steps: row.steps as unknown as Recipe['steps'],
                   tags: row.tags,
                   estimatedCost: row.estimated_cost,
                 };
