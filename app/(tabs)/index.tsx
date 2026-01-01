@@ -21,22 +21,16 @@ export default function TonightScreen() {
   const { showToast } = useToast();
   // Get data from stores
   const { todayRecommendation } = useMealPlanStore();
-  const { partner, onboardingComplete } = useUserStore();
+  const { partner } = useUserStore();
   const { fetchRecommendation, rejectAndGetNext, isLoading } = useRecommendation();
 
-  // Redirect to onboarding if not complete
-  useEffect(() => {
-    if (!onboardingComplete) {
-      router.replace('/onboarding');
-    }
-  }, [onboardingComplete, router]);
-
   // Auto-fetch recommendation on mount if none exists
+  // Note: Auth and onboarding checks are handled by _layout.tsx
   useEffect(() => {
-    if (onboardingComplete && !todayRecommendation && !isLoading) {
+    if (!todayRecommendation && !isLoading) {
       fetchRecommendation();
     }
-  }, [onboardingComplete]); // Only run once on mount after onboarding
+  }, []); // Only run once on mount
 
   const handleLetsCook = () => {
     if (!todayRecommendation) return;
