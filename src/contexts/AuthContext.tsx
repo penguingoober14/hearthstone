@@ -22,6 +22,7 @@ import {
 } from '../lib/supabase';
 import { useUserStore } from '../stores/userStore';
 import type { User, UserPreferences } from '../types';
+import type { ProfileUpdate, UserProgressInsert } from '../types/database';
 
 // Auth state interface
 interface AuthState {
@@ -29,6 +30,13 @@ interface AuthState {
   session: AuthSession | null;
   loading: boolean;
   isAuthenticated: boolean;
+}
+
+// Profile update data interface
+interface ProfileUpdateData {
+  name?: string;
+  preferences?: Partial<UserPreferences>;
+  avatar_url?: string | null;
 }
 
 // Auth context value interface
@@ -40,6 +48,8 @@ interface AuthContextValue extends AuthState {
     name: string
   ) => Promise<{ error: Error | null }>;
   signOut: () => Promise<{ error: Error | null }>;
+  updateProfile: (data: ProfileUpdateData) => Promise<{ error: Error | null }>;
+  initializeUserProgress: () => Promise<{ error: Error | null }>;
 }
 
 // Create context with undefined default
@@ -306,6 +316,117 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   }, [clearLocalUser]);
 
+  /**
+   * Update the user's profile in Supabase
+   * @param data Profile data to update (name, preferences, avatar_url)
+   * @returns Error if update failed
+   */
+  const updateProfile = useCallback(
+    async (data: ProfileUpdateData): Promise<{ error: Error | null }> => {
+      try {
+        if (!user) {
+          return { error: new Error('No authenticated user') };
+        }
+
+        // Build the update object for Supabase
+        const updateData: ProfileUpdate = {};
+
+        if (data.name !== undefined) {
+          updateData.name = data.name;
+        }
+
+        if (data.avatar_url !== undefined) {
+          updateData.avatar_url = data.avatar_url;
+        }
+
+        if (data.preferences !== undefined) {
+          // Fetch current preferences to merge with new ones
+          const { data: currentProfile } = await supabase
+            .from('profiles')
+            .select('preferences')
+            .eq('id', user.id)
+            .single();
+
+          const currentPreferences = (currentProfile?.preferences as UserPreferences) || {};
+          updateData.preferences = {
+            ...currentPreferences,
+            ...data.preferences,
+          };
+        }
+
+        // Update the profile in Supabase
+        const { error } = await supabase
+          .from('profiles')
+          .update(updateData)
+          .eq('id', user.id);
+
+        if (error) {
+          console.error('Error updating profile:', error.message);
+          return { error: new Error(error.message) };
+        }
+
+        // Sync updated profile to local store
+        await syncUserToStore(user);
+
+        return { error: null };
+      } catch (err) {
+        console.error('Error updating profile:', err);
+        return { error: err as Error };
+      }
+    },
+    [user, syncUserToStore]
+  );
+
+  /**
+   * Initialize user progress record in Supabase
+   * Creates a new user_progress record for the authenticated user
+   * @returns Error if initialization failed
+   */
+  const initializeUserProgress = useCallback(async (): Promise<{ error: Error | null }> => {
+    try {
+      if (!user) {
+        return { error: new Error('No authenticated user') };
+      }
+
+      // Check if progress record already exists
+      const { data: existingProgress } = await supabase
+        .from('user_progress')
+        .select('user_id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (existingProgress) {
+        // Progress already exists, no need to initialize
+        return { error: null };
+      }
+
+      // Create initial progress record
+      const initialProgress: UserProgressInsert = {
+        user_id: user.id,
+        level: 1,
+        current_xp: 0,
+        streak: 0,
+        longest_streak: 0,
+        achievements: [],
+        badges: [],
+      };
+
+      const { error } = await supabase
+        .from('user_progress')
+        .insert(initialProgress);
+
+      if (error) {
+        console.error('Error initializing user progress:', error.message);
+        return { error: new Error(error.message) };
+      }
+
+      return { error: null };
+    } catch (err) {
+      console.error('Error initializing user progress:', err);
+      return { error: err as Error };
+    }
+  }, [user]);
+
   // Compute isAuthenticated from session
   const isAuthenticated = useMemo(() => !!session && !!user, [session, user]);
 
@@ -319,8 +440,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
       signIn,
       signUp,
       signOut,
+      updateProfile,
+      initializeUserProgress,
     }),
-    [user, session, loading, isAuthenticated, signIn, signUp, signOut]
+    [user, session, loading, isAuthenticated, signIn, signUp, signOut, updateProfile, initializeUserProgress]
   );
 
   return (
@@ -349,4 +472,4 @@ export function useAuth(): AuthContextValue {
 export { AuthContext };
 
 // Export types for consumers
-export type { AuthState, AuthContextValue, AuthProviderProps };
+export type { AuthState, AuthContextValue, AuthProviderProps, ProfileUpdateData };

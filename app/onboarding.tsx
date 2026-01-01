@@ -12,6 +12,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useUserStore, useProgressStore } from '../src/stores';
+import { useAuth } from '../src/contexts/AuthContext';
+import { useToast } from '../src/components/Toast';
 import { colors, spacing, borderRadius, shadows } from '../src/lib/theme';
 import { Button, ProgressBar, AnimatedContainer } from '../src/components';
 import type { UserPreferences } from '../src/types';
@@ -51,6 +53,8 @@ export default function OnboardingScreen() {
   const router = useRouter();
   const { completeOnboarding } = useUserStore();
   const { initializeChallenges } = useProgressStore();
+  const { isAuthenticated, updateProfile, initializeUserProgress } = useAuth();
+  const { showToast } = useToast();
 
   // Form state
   const [step, setStep] = useState(1);
@@ -90,6 +94,46 @@ export default function OnboardingScreen() {
     }
   };
 
+  /**
+   * Sync user data to Supabase (async, non-blocking)
+   * Handles profile update and progress initialization
+   */
+  const syncToSupabase = async (preferences: Partial<UserPreferences>) => {
+    // Only sync if user is authenticated with Supabase
+    if (!isAuthenticated) {
+      return;
+    }
+
+    try {
+      // Sync profile to Supabase (name and preferences)
+      const { error: profileError } = await updateProfile({
+        name: name.trim(),
+        preferences: {
+          cookingSkillLevel: skillLevel,
+          dietaryRestrictions,
+          favoriteCuisines,
+          ...preferences,
+        },
+      });
+
+      if (profileError) {
+        console.error('Error syncing profile to Supabase:', profileError.message);
+        showToast('Profile saved locally. Cloud sync will retry later.', 'info');
+      }
+
+      // Initialize user progress in Supabase
+      const { error: progressError } = await initializeUserProgress();
+
+      if (progressError) {
+        console.error('Error initializing progress in Supabase:', progressError.message);
+        // Don't show another toast - profile error toast is enough
+      }
+    } catch (err) {
+      console.error('Error syncing to Supabase:', err);
+      showToast('Profile saved locally. Cloud sync will retry later.', 'info');
+    }
+  };
+
   const handleComplete = () => {
     const preferences: Partial<UserPreferences> = {
       cookingSkillLevel: skillLevel,
@@ -97,9 +141,17 @@ export default function OnboardingScreen() {
       favoriteCuisines,
     };
 
+    // Step 1: Update local store (synchronous)
     completeOnboarding(name.trim(), preferences);
-    // Initialize challenges based on skill level
+
+    // Step 2: Initialize challenges based on skill level (synchronous)
     initializeChallenges(skillLevel);
+
+    // Step 3: Sync to Supabase (async, non-blocking)
+    // This runs in the background and doesn't block navigation
+    syncToSupabase(preferences);
+
+    // Step 4: Navigate to home immediately
     router.replace('/');
   };
 

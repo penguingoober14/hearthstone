@@ -2,7 +2,9 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { createDateAwareStorage } from '../lib/storage';
 import { generateId } from '../lib/uuid';
+import { supabase } from '../lib/supabase';
 import type { UserProgress, Achievement, Badge, Challenge } from '../types';
+import type { UserProgressRow, UserProgressInsert, UserProgressUpdate } from '../types/database';
 
 // XP required for each level (exponential curve)
 const getXPForLevel = (level: number): number => {
@@ -80,11 +82,20 @@ const STANDARD_CHALLENGES: Omit<Challenge, 'id' | 'expiresAt'>[] = [
   },
 ];
 
+// Queue for offline sync
+interface SyncQueueItem {
+  type: 'progress';
+  data: UserProgressUpdate;
+  timestamp: number;
+}
+
 interface ProgressState {
   progress: UserProgress;
   activeChallenges: Challenge[];
   isLoading: boolean;
   challengesInitialized: boolean;
+  syncQueue: SyncQueueItem[];
+  lastSyncedAt: string | null;
 
   // Actions
   addXP: (amount: number) => void;
@@ -95,6 +106,10 @@ interface ProgressState {
   removeChallenge: (challengeId: string) => void;
   initializeChallenges: (skillLevel: 'beginner' | 'intermediate' | 'advanced') => void;
   resetProgress: () => void;
+
+  // Supabase sync actions
+  syncToSupabase: () => Promise<void>;
+  loadFromSupabase: (userId: string) => Promise<void>;
 }
 
 const initialProgress: UserProgress = {
@@ -107,6 +122,80 @@ const initialProgress: UserProgress = {
   badges: [],
 };
 
+// Helper to convert local UserProgress to Supabase row format
+const progressToRow = (progress: UserProgress, userId: string): UserProgressInsert => ({
+  user_id: userId,
+  level: progress.level,
+  current_xp: progress.currentXP,
+  streak: progress.streak,
+  longest_streak: progress.longestStreak,
+  achievements: progress.achievements as unknown as UserProgressInsert['achievements'],
+  badges: progress.badges as unknown as UserProgressInsert['badges'],
+});
+
+// Helper to convert Supabase row to local UserProgress
+const rowToProgress = (row: UserProgressRow): UserProgress => ({
+  level: row.level,
+  currentXP: row.current_xp,
+  nextLevelXP: getXPForLevel(row.level),
+  streak: row.streak,
+  longestStreak: row.longest_streak,
+  achievements: (row.achievements as unknown as Achievement[]) || [],
+  badges: (row.badges as unknown as Badge[]) || [],
+});
+
+// Helper to merge remote and local progress (takes the best values)
+const mergeProgress = (local: UserProgress, remote: UserProgress): UserProgress => {
+  // For XP and level: take whichever is higher
+  const useRemoteLevel = remote.level > local.level ||
+    (remote.level === local.level && remote.currentXP > local.currentXP);
+
+  const level = useRemoteLevel ? remote.level : local.level;
+  const currentXP = useRemoteLevel ? remote.currentXP : local.currentXP;
+
+  // For streaks: take whichever is longer
+  const streak = Math.max(local.streak, remote.streak);
+  const longestStreak = Math.max(local.longestStreak, remote.longestStreak);
+
+  // For achievements: merge unique achievements, take the one with higher progress or that's unlocked
+  const achievementsMap = new Map<string, Achievement>();
+
+  [...local.achievements, ...remote.achievements].forEach((achievement) => {
+    const existing = achievementsMap.get(achievement.id);
+    if (!existing) {
+      achievementsMap.set(achievement.id, achievement);
+    } else {
+      // Prefer unlocked over locked, or higher progress
+      const existingUnlocked = existing.unlockedAt !== null;
+      const newUnlocked = achievement.unlockedAt !== null;
+
+      if (newUnlocked && !existingUnlocked) {
+        achievementsMap.set(achievement.id, achievement);
+      } else if (!newUnlocked && !existingUnlocked && achievement.progress > existing.progress) {
+        achievementsMap.set(achievement.id, achievement);
+      }
+    }
+  });
+
+  // For badges: merge unique badges by id
+  const badgesMap = new Map<string, Badge>();
+  [...local.badges, ...remote.badges].forEach((badge) => {
+    if (!badgesMap.has(badge.id)) {
+      badgesMap.set(badge.id, badge);
+    }
+  });
+
+  return {
+    level,
+    currentXP,
+    nextLevelXP: getXPForLevel(level),
+    streak,
+    longestStreak,
+    achievements: Array.from(achievementsMap.values()),
+    badges: Array.from(badgesMap.values()),
+  };
+};
+
 export const useProgressStore = create<ProgressState>()(
   persist(
     (set, get) => ({
@@ -114,6 +203,8 @@ export const useProgressStore = create<ProgressState>()(
       activeChallenges: [],
       isLoading: false,
       challengesInitialized: false,
+      syncQueue: [],
+      lastSyncedAt: null,
 
       addXP: (amount) => {
         set((state) => {
@@ -247,7 +338,126 @@ export const useProgressStore = create<ProgressState>()(
           progress: initialProgress,
           activeChallenges: [],
           challengesInitialized: false,
+          syncQueue: [],
+          lastSyncedAt: null,
         });
+      },
+
+      syncToSupabase: async () => {
+        const { progress, syncQueue } = get();
+
+        // Get current user from auth
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          console.log('[progressStore] No authenticated user, skipping sync');
+          return;
+        }
+
+        set({ isLoading: true });
+
+        try {
+          // Process queued operations first (for offline sync)
+          if (syncQueue.length > 0) {
+            console.log(`[progressStore] Processing ${syncQueue.length} queued operations`);
+            for (const queueItem of syncQueue) {
+              try {
+                await supabase
+                  .from('user_progress')
+                  .update(queueItem.data)
+                  .eq('user_id', user.id);
+              } catch (error) {
+                console.error('[progressStore] Error processing queue item:', error);
+              }
+            }
+          }
+
+          // Upsert current progress
+          const progressData = progressToRow(progress, user.id);
+
+          const { error } = await supabase
+            .from('user_progress')
+            .upsert(progressData);
+
+          if (error) {
+            console.error('[progressStore] Error syncing to Supabase:', error.message);
+            throw error;
+          }
+
+          set({
+            lastSyncedAt: new Date().toISOString(),
+            syncQueue: [],
+          });
+          console.log('[progressStore] Successfully synced progress to Supabase');
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Unknown sync error';
+          console.error('[progressStore] Sync error:', errorMessage);
+
+          // Queue progress for later sync (offline scenario)
+          set((state) => ({
+            syncQueue: [
+              ...state.syncQueue,
+              {
+                type: 'progress',
+                data: {
+                  level: progress.level,
+                  current_xp: progress.currentXP,
+                  streak: progress.streak,
+                  longest_streak: progress.longestStreak,
+                  achievements: progress.achievements as unknown as UserProgressUpdate['achievements'],
+                  badges: progress.badges as unknown as UserProgressUpdate['badges'],
+                },
+                timestamp: Date.now(),
+              },
+            ],
+          }));
+        } finally {
+          set({ isLoading: false });
+        }
+      },
+
+      loadFromSupabase: async (userId: string) => {
+        set({ isLoading: true });
+
+        try {
+          const { data, error } = await supabase
+            .from('user_progress')
+            .select('*')
+            .eq('user_id', userId)
+            .single();
+
+          if (error) {
+            // PGRST116 means no rows found - this is okay for new users
+            if (error.code === 'PGRST116') {
+              console.log('[progressStore] No progress found for user, using defaults');
+              set({ lastSyncedAt: new Date().toISOString() });
+              return;
+            }
+            console.error('[progressStore] Error loading from Supabase:', error.message);
+            return;
+          }
+
+          if (!data) {
+            console.log('[progressStore] No progress found for user');
+            set({ lastSyncedAt: new Date().toISOString() });
+            return;
+          }
+
+          const remoteProgress = rowToProgress(data);
+          const localProgress = get().progress;
+
+          // Merge local and remote progress, taking the best values
+          const mergedProgress = mergeProgress(localProgress, remoteProgress);
+
+          set({
+            progress: mergedProgress,
+            lastSyncedAt: new Date().toISOString(),
+          });
+          console.log('[progressStore] Successfully loaded and merged progress from Supabase');
+        } catch (error) {
+          console.error('[progressStore] Load error:', error);
+        } finally {
+          set({ isLoading: false });
+        }
       },
     }),
     {
